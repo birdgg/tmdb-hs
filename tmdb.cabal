@@ -1,0 +1,56 @@
+cabal-version:   3.0
+name:            tmdb
+version:         0.1.0.0
+synopsis:        TMDB API client for Haskell
+description:
+  A pure Haskell client library for the TMDB (The Movie Database) API.
+  Provides type-safe API bindings using servant-client.
+
+license:         MIT
+license-file:    LICENSE
+author:          birdgg
+maintainer:      birdgg
+category:        Network
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+source-repository head
+  type:     git
+  location: https://github.com/birdgg/tmdb-hs.git
+
+library
+  exposed-modules:
+    Network.Tmdb
+    Network.Tmdb.API
+    Network.Tmdb.Client
+    Network.Tmdb.IO
+    Network.Tmdb.Types
+    Network.Tmdb.Types.Common
+    Network.Tmdb.Types.Discover
+    Network.Tmdb.Types.Search
+    Network.Tmdb.Types.Tv
+
+  build-depends:
+    , aeson                >=2.1
+    , base                 >=4.16 && <5
+    , http-api-data        >=0.5
+    , http-client          >=0.7
+    , http-client-tls      >=0.3
+    , servant              >=0.20
+    , servant-client       >=0.20
+    , servant-client-core  >=0.20
+    , text                 >=2.0
+
+  hs-source-dirs:   src
+  default-language: GHC2021
+  ghc-options:      -Wall
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DerivingStrategies
+    DuplicateRecordFields
+    LambdaCase
+    NoFieldSelectors
+    OverloadedRecordDot
+    OverloadedStrings
+    TypeFamilies
