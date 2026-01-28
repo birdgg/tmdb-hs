@@ -1,9 +1,24 @@
 -- | Types for TMDB API
 module Network.Tmdb.Types
-  ( -- * TV Show
-    TvShow (..)
+  ( -- * Movie
+    Movie (..)
+  , MovieDetail (..)
+  , Genre (..)
+  , ProductionCompany (..)
+  , ProductionCountry (..)
+  , SpokenLanguage (..)
+
+    -- * TV Show
+  , TvShow (..)
   , TvDetail (..)
   , TvSeasonSummary (..)
+
+    -- * TV Season
+  , TvSeasonDetail (..)
+
+    -- * TV Episode
+  , TvEpisode (..)
+  , TvEpisodeDetail (..)
 
     -- * Multi Search
   , MultiSearchResult (..)
@@ -25,5 +40,6 @@ where
 
 import Network.Tmdb.Types.Common
 import Network.Tmdb.Types.Discover
+import Network.Tmdb.Types.Movie
 import Network.Tmdb.Types.Search
 import Network.Tmdb.Types.Tv

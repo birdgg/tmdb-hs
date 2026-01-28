@@ -1,18 +1,30 @@
--- | TMDB API definition for servant-client
+{-# LANGUAGE FieldSelectors #-}
+
+{- | TMDB API definition for servant-client
+
+This module combines all API routes into a unified API type.
+-}
 module Network.Tmdb.API
   ( -- * API Types
     TmdbAPI
   , TmdbRoutes (..)
+
+    -- * Sub-routes
+  , DiscoverRoutes (..)
+  , MovieRoutes (..)
+  , SearchRoutes (..)
+  , TvRoutes (..)
 
     -- * Configuration
   , tmdbBaseUrl
   )
 where
 
-import Data.Int (Int64)
-import Data.Text (Text)
 import GHC.Generics (Generic)
-import Network.Tmdb.Types
+import Network.Tmdb.API.Discover (DiscoverRoutes (..))
+import Network.Tmdb.API.Movie (MovieRoutes (..))
+import Network.Tmdb.API.Search (SearchRoutes (..))
+import Network.Tmdb.API.Tv (TvRoutes (..))
 import Servant.API
 import Servant.Client (BaseUrl (..), Scheme (..))
 
@@ -21,38 +33,10 @@ type TmdbAPI = "3" :> NamedRoutes TmdbRoutes
 
 -- | TMDB API routes using NamedRoutes pattern
 data TmdbRoutes mode = TmdbRoutes
-  { discoverTv
-      :: mode
-        :- "discover"
-          :> "tv"
-          :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
-          :> QueryParam "with_genres" Text
-          :> QueryParam "with_text_query" Text
-          :> Get '[JSON] (PaginatedResponse TvShow)
-  , searchTv
-      :: mode
-        :- "search"
-          :> "tv"
-          :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
-          :> QueryParam' '[Required, Strict] "query" Text
-          :> Get '[JSON] (PaginatedResponse TvShow)
-  , searchMulti
-      :: mode
-        :- "search"
-          :> "multi"
-          :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
-          :> QueryParam' '[Required, Strict] "query" Text
-          :> Get '[JSON] (PaginatedResponse MultiSearchResult)
-  , getTvDetail
-      :: mode
-        :- "tv"
-          :> Capture "tv_id" Int64
-          :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
-          :> Get '[JSON] TvDetail
+  { discover :: mode :- "discover" :> NamedRoutes DiscoverRoutes
+  , movie :: mode :- "movie" :> NamedRoutes MovieRoutes
+  , search :: mode :- "search" :> NamedRoutes SearchRoutes
+  , tv :: mode :- "tv" :> NamedRoutes TvRoutes
   }
   deriving stock (Generic)
 

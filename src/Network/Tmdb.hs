@@ -45,7 +45,10 @@ module Network.Tmdb
   , searchTv
   , searchMulti
   , discoverTv
+  , getMovieDetail
   , getTvDetail
+  , getTvSeasonDetail
+  , getTvEpisodeDetail
 
     -- * Types
   , module Network.Tmdb.Types

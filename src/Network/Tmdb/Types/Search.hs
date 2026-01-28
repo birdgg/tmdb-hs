@@ -13,14 +13,14 @@ import Data.Text qualified as Text
 import GHC.Generics (Generic)
 
 -- | Media type for multi search results
-data MediaType = Movie | Tv | Person
+data MediaType = MediaMovie | MediaTv | MediaPerson
   deriving stock (Show, Eq, Generic)
 
 instance FromJSON MediaType where
   parseJSON = withText "MediaType" $ \case
-    "movie" -> pure Movie
-    "tv" -> pure Tv
-    "person" -> pure Person
+    "movie" -> pure MediaMovie
+    "tv" -> pure MediaTv
+    "person" -> pure MediaPerson
     other -> fail $ "Unknown media_type: " <> Text.unpack other
 
 -- | Multi search result from TMDB API

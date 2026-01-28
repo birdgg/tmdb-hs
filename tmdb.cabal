@@ -22,11 +22,16 @@ library
   exposed-modules:
     Network.Tmdb
     Network.Tmdb.API
+    Network.Tmdb.API.Discover
+    Network.Tmdb.API.Movie
+    Network.Tmdb.API.Search
+    Network.Tmdb.API.Tv
     Network.Tmdb.Client
     Network.Tmdb.IO
     Network.Tmdb.Types
     Network.Tmdb.Types.Common
     Network.Tmdb.Types.Discover
+    Network.Tmdb.Types.Movie
     Network.Tmdb.Types.Search
     Network.Tmdb.Types.Tv
 

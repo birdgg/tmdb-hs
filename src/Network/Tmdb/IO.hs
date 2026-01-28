@@ -28,7 +28,10 @@ module Network.Tmdb.IO
   , searchTv
   , searchMulti
   , discoverTv
+  , getMovieDetail
   , getTvDetail
+  , getTvSeasonDetail
+  , getTvEpisodeDetail
 
     -- * Re-exports
   , ClientError
@@ -106,6 +109,17 @@ discoverTv client params =
     (C.discoverTv client.config.apiKey client.config.language params)
     client.clientEnv
 
+-- | Get movie details
+getMovieDetail
+  :: TmdbClient
+  -> Int64
+  -- ^ Movie ID
+  -> IO (Either ClientError MovieDetail)
+getMovieDetail client movieId =
+  runClientM
+    (C.getMovieDetail client.config.apiKey client.config.language movieId)
+    client.clientEnv
+
 -- | Get TV show details
 getTvDetail
   :: TmdbClient
@@ -115,4 +129,32 @@ getTvDetail
 getTvDetail client tvId =
   runClientM
     (C.getTvDetail client.config.apiKey client.config.language tvId)
+    client.clientEnv
+
+-- | Get TV season details
+getTvSeasonDetail
+  :: TmdbClient
+  -> Int64
+  -- ^ TV series ID
+  -> Int
+  -- ^ Season number
+  -> IO (Either ClientError TvSeasonDetail)
+getTvSeasonDetail client seriesId seasonNum =
+  runClientM
+    (C.getTvSeasonDetail client.config.apiKey client.config.language seriesId seasonNum)
+    client.clientEnv
+
+-- | Get TV episode details
+getTvEpisodeDetail
+  :: TmdbClient
+  -> Int64
+  -- ^ TV series ID
+  -> Int
+  -- ^ Season number
+  -> Int
+  -- ^ Episode number
+  -> IO (Either ClientError TvEpisodeDetail)
+getTvEpisodeDetail client seriesId seasonNum episodeNum =
+  runClientM
+    (C.getTvEpisodeDetail client.config.apiKey client.config.language seriesId seasonNum episodeNum)
     client.clientEnv

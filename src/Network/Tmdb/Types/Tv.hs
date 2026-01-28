@@ -4,6 +4,13 @@ module Network.Tmdb.Types.Tv
     TvShow (..)
   , TvDetail (..)
   , TvSeasonSummary (..)
+
+    -- * TV Season
+  , TvSeasonDetail (..)
+
+    -- * TV Episode
+  , TvEpisode (..)
+  , TvEpisodeDetail (..)
   )
 where
 
@@ -109,3 +116,94 @@ instance FromJSON TvDetail where
       <*> o .: "number_of_episodes"
       <*> o .:? "homepage"
       <*> o .:? "seasons" .!= []
+
+-- | TV Episode from TMDB API (included in TvSeasonDetail.episodes)
+data TvEpisode = TvEpisode
+  { id :: Int64
+  , name :: Text
+  , overview :: Text
+  , airDate :: Maybe Text
+  , episodeNumber :: Int
+  , seasonNumber :: Int
+  , stillPath :: Maybe Text
+  , voteAverage :: Double
+  , voteCount :: Int64
+  , runtime :: Maybe Int
+  , productionCode :: Maybe Text
+  }
+  deriving stock (Show, Eq, Generic)
+
+instance FromJSON TvEpisode where
+  parseJSON = withObject "TvEpisode" $ \o ->
+    TvEpisode
+      <$> o .: "id"
+      <*> o .: "name"
+      <*> o .:? "overview" .!= ""
+      <*> o .:? "air_date"
+      <*> o .: "episode_number"
+      <*> o .: "season_number"
+      <*> o .:? "still_path"
+      <*> o .:? "vote_average" .!= 0
+      <*> o .:? "vote_count" .!= 0
+      <*> o .:? "runtime"
+      <*> o .:? "production_code"
+
+-- | TV Season Detail from TMDB API (tv/{id}/season/{number} endpoint)
+data TvSeasonDetail = TvSeasonDetail
+  { id :: Int64
+  , name :: Text
+  , overview :: Text
+  , posterPath :: Maybe Text
+  , seasonNumber :: Int
+  , airDate :: Maybe Text
+  , voteAverage :: Double
+  , voteCount :: Int64
+  , episodes :: [TvEpisode]
+  }
+  deriving stock (Show, Eq, Generic)
+
+instance FromJSON TvSeasonDetail where
+  parseJSON = withObject "TvSeasonDetail" $ \o ->
+    TvSeasonDetail
+      <$> o .: "id"
+      <*> o .:? "name" .!= ""
+      <*> o .:? "overview" .!= ""
+      <*> o .:? "poster_path"
+      <*> o .: "season_number"
+      <*> o .:? "air_date"
+      <*> o .:? "vote_average" .!= 0
+      <*> o .:? "vote_count" .!= 0
+      <*> o .:? "episodes" .!= []
+
+-- | TV Episode Detail from TMDB API (tv/{id}/season/{number}/episode/{number} endpoint)
+data TvEpisodeDetail = TvEpisodeDetail
+  { id :: Int64
+  , showId :: Int64
+  , name :: Text
+  , overview :: Text
+  , airDate :: Maybe Text
+  , episodeNumber :: Int
+  , seasonNumber :: Int
+  , stillPath :: Maybe Text
+  , voteAverage :: Double
+  , voteCount :: Int64
+  , runtime :: Maybe Int
+  , productionCode :: Maybe Text
+  }
+  deriving stock (Show, Eq, Generic)
+
+instance FromJSON TvEpisodeDetail where
+  parseJSON = withObject "TvEpisodeDetail" $ \o ->
+    TvEpisodeDetail
+      <$> o .: "id"
+      <*> o .: "show_id"
+      <*> o .: "name"
+      <*> o .:? "overview" .!= ""
+      <*> o .:? "air_date"
+      <*> o .: "episode_number"
+      <*> o .: "season_number"
+      <*> o .:? "still_path"
+      <*> o .:? "vote_average" .!= 0
+      <*> o .:? "vote_count" .!= 0
+      <*> o .:? "runtime"
+      <*> o .:? "production_code"
