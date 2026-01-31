@@ -5,8 +5,8 @@ A pure Haskell client library for [TMDB (The Movie Database) API](https://www.th
 ## Features
 
 - Type-safe API bindings using [servant-client](https://hackage.haskell.org/package/servant-client)
-- High-level IO interface with automatic HTTP client management
-- Low-level ClientM interface for advanced use cases
+- Comprehensive error handling with domain-specific error types
+- Type-safe locale support using the [country](https://hackage.haskell.org/package/country) package
 - Support for Movies, TV Shows, Seasons, Episodes, and Search
 
 ## Installation
@@ -29,24 +29,95 @@ extra-deps:
 ## Quick Start
 
 ```haskell
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.Tmdb
 
 main :: IO ()
 main = do
-  -- Create a client with your API key
-  client <- newTmdbClient (TmdbConfig "your-api-key" "zh-CN")
+  -- Create HTTP manager and API client
+  manager <- newManager tlsManagerSettings
+  let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
 
   -- Get movie details
-  movieResult <- getMovieDetail client 550  -- Fight Club
+  movieResult <- tmdb.getMovieDetail (MovieId 550)  -- Fight Club
   case movieResult of
     Right movie -> putStrLn $ "Title: " <> show movie.title
-    Left err -> print err
+    Left err -> handleError err
 
   -- Search for TV shows
-  tvResult <- searchTv client "Breaking Bad"
+  tvResult <- tmdb.searchTv "Breaking Bad"
   case tvResult of
     Right shows -> mapM_ (print . (.name)) shows.results
-    Left err -> print err
+    Left err -> handleError err
+
+handleError :: TmdbError -> IO ()
+handleError err
+  | isAuthError err = putStrLn "Invalid API key!"
+  | isNotFound err = putStrLn "Resource not found"
+  | isRateLimited err = putStrLn "Rate limited, please wait"
+  | otherwise = print err
+```
+
+## Error Handling
+
+The library provides comprehensive error handling with the `TmdbError` type:
+
+```haskell
+data TmdbError
+  = TmdbApiError        -- TMDB API returned a structured error
+      { httpStatus :: Int
+      , tmdbStatusCode :: Int64
+      , tmdbStatusMessage :: Text
+      }
+  | TmdbNotFoundError   -- Resource not found (HTTP 404)
+      { resourceType :: Text
+      , resourceId :: Text
+      }
+  | TmdbAuthError       -- Authentication failed
+      { authMessage :: Text
+      }
+  | TmdbRateLimitError  -- Rate limit exceeded (HTTP 429)
+      { retryAfter :: Maybe Int
+      }
+  | TmdbHttpError       -- HTTP error without parseable body
+      { httpStatus :: Int
+      , httpBody :: Text
+      }
+  | TmdbDecodeError     -- JSON parsing failed
+      { decodeMessage :: Text
+      , responseBody :: Text
+      }
+  | TmdbConnectionError -- Network connectivity error
+      { connectionMessage :: Text
+      }
+  | TmdbUnknownError    -- Unexpected error
+      { unknownMessage :: Text
+      }
+```
+
+### Error Predicates
+
+Convenient functions for error checking:
+
+```haskell
+isNotFound    :: TmdbError -> Bool  -- 404 or TMDB status 34/6
+isAuthError   :: TmdbError -> Bool  -- 401 or TMDB status 3/7
+isRateLimited :: TmdbError -> Bool  -- 429 or TMDB status 25
+isNetworkError :: TmdbError -> Bool -- Connection failures
+```
+
+### Converting from ClientError
+
+If you need to work with raw servant-client errors:
+
+```haskell
+import Servant.Client (ClientError)
+import Network.Tmdb (fromClientError)
+
+-- Convert ClientError to TmdbError
+handleClientError :: ClientError -> TmdbError
+handleClientError = fromClientError
 ```
 
 ## API Coverage
@@ -55,51 +126,74 @@ main = do
 
 ```haskell
 -- Get movie details by ID
-getMovieDetail :: TmdbClient -> Int64 -> IO (Either ClientError MovieDetail)
+tmdb.getMovieDetail :: MovieId -> IO (Either TmdbError MovieDetail)
 ```
 
 ### TV Shows
 
 ```haskell
 -- Search TV shows
-searchTv :: TmdbClient -> Text -> IO (Either ClientError (PaginatedResponse TvShow))
+tmdb.searchTv :: Text -> IO (Either TmdbError (PaginatedResponse TvShow))
 
 -- Get TV show details
-getTvDetail :: TmdbClient -> Int64 -> IO (Either ClientError TvDetail)
+tmdb.getTvDetail :: TvShowId -> IO (Either TmdbError TvDetail)
 
 -- Get season details
-getTvSeasonDetail :: TmdbClient -> Int64 -> Int -> IO (Either ClientError TvSeasonDetail)
+tmdb.getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbError TvSeasonDetail)
 
 -- Get episode details
-getTvEpisodeDetail :: TmdbClient -> Int64 -> Int -> Int -> IO (Either ClientError TvEpisodeDetail)
+tmdb.getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbError TvEpisodeDetail)
 ```
 
-### Discovery & Search
+### Discovery and Search
 
 ```haskell
 -- Discover TV shows with filters
-discoverTv :: TmdbClient -> DiscoverTvParams -> IO (Either ClientError (PaginatedResponse TvShow))
+tmdb.discoverTv :: DiscoverTvParams -> IO (Either TmdbError (PaginatedResponse TvShow))
 
 -- Multi search (movies, TV shows, people)
-searchMulti :: TmdbClient -> Text -> IO (Either ClientError (PaginatedResponse MultiSearchResult))
+tmdb.searchMulti :: Text -> IO (Either TmdbError (PaginatedResponse MultiSearchResult))
 ```
 
-## Low-Level API
+## Locale Support
 
-For more control, use the `Network.Tmdb.Client` module directly:
+The library uses type-safe locales with the `TmdbLocale` type:
 
 ```haskell
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import qualified Network.Tmdb.Client as Tmdb
-import Servant.Client (mkClientEnv, runClientM)
+-- Pre-defined locales
+enUS, enGB :: TmdbLocale  -- English
+zhCN, zhTW :: TmdbLocale  -- Chinese
+jaJP :: TmdbLocale        -- Japanese
+koKR :: TmdbLocale        -- Korean
+frFR :: TmdbLocale        -- French
+deDE :: TmdbLocale        -- German
+esES, esMX :: TmdbLocale  -- Spanish
+ptBR, ptPT :: TmdbLocale  -- Portuguese
+itIT :: TmdbLocale        -- Italian
+ruRU :: TmdbLocale        -- Russian
 
-main :: IO ()
-main = do
-  manager <- newManager tlsManagerSettings
-  let env = mkClientEnv manager Tmdb.tmdbBaseUrl
-  result <- runClientM (Tmdb.getMovieDetail "your-api-key" "en-US" 550) env
-  print result
+-- Create custom locale
+import Country (unitedKingdom)
+myLocale = mkLocale "en" unitedKingdom  -- "en-GB"
+```
+
+## Image URLs
+
+Helper functions for constructing image URLs:
+
+```haskell
+import Network.Tmdb
+
+-- Get poster URL
+let url = posterUrl W500 movie.posterPath
+-- Result: "https://image.tmdb.org/t/p/w500/path.jpg"
+
+-- Available sizes
+posterUrl   :: PosterSize -> Maybe Text -> Maybe Text
+backdropUrl :: BackdropSize -> Maybe Text -> Maybe Text
+profileUrl  :: ProfileSize -> Maybe Text -> Maybe Text
+logoUrl     :: LogoSize -> Maybe Text -> Maybe Text
+stillUrl    :: StillSize -> Maybe Text -> Maybe Text
 ```
 
 ## Types
@@ -119,16 +213,18 @@ main = do
 
 ### Common Types
 
+- `MovieId`, `TvShowId` - Type-safe ID wrappers
 - `PaginatedResponse a` - Wrapper for paginated API responses
 - `MediaType` - `MediaMovie | MediaTv | MediaPerson`
 - `MultiSearchResult` - Union type for multi-search results
+- `TmdbError` - Domain-specific error type
 
 ## Configuration
 
 ```haskell
 data TmdbConfig = TmdbConfig
-  { apiKey :: Text    -- Your TMDB API key
-  , language :: Text  -- Language code (e.g., "zh-CN", "en-US", "ja-JP")
+  { apiKey :: Text       -- Your TMDB API key
+  , locale :: TmdbLocale -- Locale for results (e.g., zhCN, enUS, jaJP)
   }
 ```
 

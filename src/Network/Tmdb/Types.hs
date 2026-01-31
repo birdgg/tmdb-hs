@@ -1,7 +1,11 @@
 -- | Types for TMDB API
 module Network.Tmdb.Types
-  ( -- * Movie
-    Movie (..)
+  ( -- * ID Types
+    MovieId (..)
+  , TvShowId (..)
+
+    -- * Movie
+  , Movie (..)
   , MovieDetail (..)
   , Genre (..)
   , ProductionCompany (..)
@@ -32,6 +36,12 @@ module Network.Tmdb.Types
 
     -- * Errors
   , TmdbError (..)
+  , TmdbApiErrorResponse (..)
+  , fromClientError
+  , isNotFound
+  , isAuthError
+  , isRateLimited
+  , isNetworkError
 
     -- * Language and Locale
   , TmdbLocale (..)
@@ -71,6 +81,7 @@ where
 
 import Network.Tmdb.Types.Common
 import Network.Tmdb.Types.Discover
+import Network.Tmdb.Types.Error
 import Network.Tmdb.Types.Image
 import Network.Tmdb.Types.Language
 import Network.Tmdb.Types.Movie

@@ -1,122 +1,141 @@
-{- | TMDB API client using servant-client
+{- | TMDB API client
 
-This module provides ClientM functions for interacting with the TMDB API.
+= Usage
+
+@
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.Tmdb
+
+main :: IO ()
+main = do
+  manager <- newManager tlsManagerSettings
+  let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+  result <- tmdb.searchTv "進撃の巨人"
+  case result of
+    Right shows -> print shows
+    Left err -> print err
+@
 -}
 module Network.Tmdb.Client
-  ( -- * API Functions
-    discoverTv
-  , searchTv
-  , searchMulti
-  , getMovieDetail
-  , getTvDetail
-  , getTvSeasonDetail
-  , getTvEpisodeDetail
+  ( -- * API
+    TmdbApi (..)
+  , TmdbConfig (..)
+  , newTmdbApi
 
     -- * Re-exports
   , module Network.Tmdb.Types
   , tmdbBaseUrl
+  , ClientError
   )
 where
 
-import Data.Int (Int64)
 import Data.Text (Text)
+import Network.HTTP.Client (Manager)
 import Network.Tmdb.API (TmdbRoutes (..), tmdbBaseUrl)
 import qualified Network.Tmdb.API.Discover as Discover
 import qualified Network.Tmdb.API.Movie as Movie
 import qualified Network.Tmdb.API.Search as Search
 import qualified Network.Tmdb.API.Tv as Tv
 import Network.Tmdb.Types
-import Servant.Client (ClientM)
+import Data.Bifunctor (first)
+import Servant.Client (ClientEnv, ClientError, ClientM, mkClientEnv, runClientM)
 import Servant.Client.Generic (AsClientT, genericClient)
 
--- | Generated client functions record (internal)
-client' :: TmdbRoutes (AsClientT ClientM)
-client' = genericClient
+-- | Configuration for TMDB API
+data TmdbConfig = TmdbConfig
+  { apiKey :: Text
+  -- ^ Your TMDB API key
+  , locale :: TmdbLocale
+  -- ^ Locale for results (e.g. zhCN, enUS, jaJP)
+  }
+  deriving stock (Show, Eq)
 
--- | Discover TV shows with optional filters
-discoverTv
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> DiscoverTvParams
-  -- ^ Discovery parameters
-  -> ClientM (PaginatedResponse TvShow)
-discoverTv apiKey locale params =
-  Discover.discoverTv (discover client') apiKey locale params.withGenres params.withTextQuery
+-- | TMDB API
+--
+-- Use record dot syntax to call API methods:
+--
+-- @
+-- let tmdb = newTmdbApi config manager
+-- result <- tmdb.searchTv "query"
+-- detail <- tmdb.getTvDetail tvId
+-- @
+data TmdbApi = TmdbApi
+  { searchTv :: Text -> IO (Either TmdbError (PaginatedResponse TvShow))
+  -- ^ Search TV shows
+  , searchMulti :: Text -> IO (Either TmdbError (PaginatedResponse MultiSearchResult))
+  -- ^ Search multi (movies, TV shows, and people)
+  , discoverTv :: DiscoverTvParams -> IO (Either TmdbError (PaginatedResponse TvShow))
+  -- ^ Discover TV shows with optional filters
+  , getMovieDetail :: MovieId -> IO (Either TmdbError MovieDetail)
+  -- ^ Get movie details
+  , getTvDetail :: TvShowId -> IO (Either TmdbError TvDetail)
+  -- ^ Get TV show details
+  , getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbError TvSeasonDetail)
+  -- ^ Get TV season details
+  , getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbError TvEpisodeDetail)
+  -- ^ Get TV episode details
+  }
 
--- | Search TV shows
-searchTv
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Text
-  -- ^ Search query
-  -> ClientM (PaginatedResponse TvShow)
-searchTv apiKey locale = Search.searchTv (search client') apiKey locale
+-- | Create a new TMDB API
+--
+-- You need to create a 'Manager' yourself and pass it in.
+-- This gives you full control over the HTTP manager's lifecycle.
+--
+-- @
+-- import Network.HTTP.Client (newManager)
+-- import Network.HTTP.Client.TLS (tlsManagerSettings)
+-- import Network.Tmdb
+--
+-- main :: IO ()
+-- main = do
+--   manager <- newManager tlsManagerSettings
+--   let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+--   result <- tmdb.searchTv "進撃の巨人"
+--   print result
+-- @
+newTmdbApi :: TmdbConfig -> Manager -> TmdbApi
+newTmdbApi cfg manager =
+  TmdbApi
+    { searchTv = \query ->
+        first fromClientError
+          <$> runClientM
+            (Search.searchTv (search client') cfg.apiKey cfg.locale query)
+            env
+    , searchMulti = \query ->
+        first fromClientError
+          <$> runClientM
+            (Search.searchMulti (search client') cfg.apiKey cfg.locale query)
+            env
+    , discoverTv = \params ->
+        first fromClientError
+          <$> runClientM
+            (Discover.discoverTv (discover client') cfg.apiKey cfg.locale params.withGenres params.withTextQuery)
+            env
+    , getMovieDetail = \movieId ->
+        first fromClientError
+          <$> runClientM
+            (Movie.getMovieDetail (movie client') movieId cfg.apiKey cfg.locale)
+            env
+    , getTvDetail = \tvId ->
+        first fromClientError
+          <$> runClientM
+            (Tv.getTvDetail (tv client') tvId cfg.apiKey cfg.locale)
+            env
+    , getTvSeasonDetail = \seriesId seasonNum ->
+        first fromClientError
+          <$> runClientM
+            (Tv.getTvSeasonDetail (tv client') seriesId seasonNum cfg.apiKey cfg.locale)
+            env
+    , getTvEpisodeDetail = \seriesId seasonNum episodeNum ->
+        first fromClientError
+          <$> runClientM
+            (Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum cfg.apiKey cfg.locale)
+            env
+    }
+  where
+    env :: ClientEnv
+    env = mkClientEnv manager tmdbBaseUrl
 
--- | Search multi (movies, TV shows, and people)
-searchMulti
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Text
-  -- ^ Search query
-  -> ClientM (PaginatedResponse MultiSearchResult)
-searchMulti apiKey locale = Search.searchMulti (search client') apiKey locale
-
--- | Get movie detail
-getMovieDetail
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Int64
-  -- ^ Movie ID
-  -> ClientM MovieDetail
-getMovieDetail apiKey locale movieId =
-  Movie.getMovieDetail (movie client') movieId apiKey locale
-
--- | Get TV detail
-getTvDetail
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Int64
-  -- ^ TV ID
-  -> ClientM TvDetail
-getTvDetail apiKey locale tvId =
-  Tv.getTvDetail (tv client') tvId apiKey locale
-
--- | Get TV season detail
-getTvSeasonDetail
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Int64
-  -- ^ TV series ID
-  -> Int
-  -- ^ Season number
-  -> ClientM TvSeasonDetail
-getTvSeasonDetail apiKey locale seriesId seasonNum =
-  Tv.getTvSeasonDetail (tv client') seriesId seasonNum apiKey locale
-
--- | Get TV episode detail
-getTvEpisodeDetail
-  :: Text
-  -- ^ API key
-  -> TmdbLocale
-  -- ^ Language/region locale
-  -> Int64
-  -- ^ TV series ID
-  -> Int
-  -- ^ Season number
-  -> Int
-  -- ^ Episode number
-  -> ClientM TvEpisodeDetail
-getTvEpisodeDetail apiKey locale seriesId seasonNum episodeNum =
-  Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum apiKey locale
+    client' :: TmdbRoutes (AsClientT ClientM)
+    client' = genericClient

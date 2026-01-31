@@ -1,24 +1,33 @@
 -- | Common types for TMDB API
 module Network.Tmdb.Types.Common
-  ( -- * Pagination
-    PaginatedResponse (..)
+  ( -- * ID Types
+    MovieId (..),
+    TvShowId (..),
 
-    -- * Errors
-  , TmdbError (..)
+    -- * Pagination
+    PaginatedResponse (..),
   )
 where
 
-import Data.Aeson
+import Data.Aeson (ToJSON)
+import Data.Aeson.Types (FromJSON (..), withObject, (.:))
 import Data.Int (Int64)
-import Data.Text (Text)
 import GHC.Generics (Generic)
+import Servant.API (FromHttpApiData, ToHttpApiData)
 
--- | Paginated response from TMDB API
+newtype MovieId = MovieId {unMovieId :: Int64}
+  deriving stock (Show, Eq, Ord, Generic)
+  deriving newtype (FromJSON, ToJSON, FromHttpApiData, ToHttpApiData)
+
+newtype TvShowId = TvShowId {unTvShowId :: Int64}
+  deriving stock (Show, Eq, Ord, Generic)
+  deriving newtype (FromJSON, ToJSON, FromHttpApiData, ToHttpApiData)
+
 data PaginatedResponse a = PaginatedResponse
-  { page :: Int64
-  , results :: [a]
-  , totalPages :: Int64
-  , totalResults :: Int64
+  { page :: Int64,
+    results :: [a],
+    totalPages :: Int64,
+    totalResults :: Int64
   }
   deriving stock (Show, Eq, Generic)
 
@@ -29,13 +38,3 @@ instance (FromJSON a) => FromJSON (PaginatedResponse a) where
       <*> o .: "results"
       <*> o .: "total_pages"
       <*> o .: "total_results"
-
--- | Errors that can occur during TMDB API operations
-data TmdbError
-  = -- | Network request failed
-    NetworkError Text
-  | -- | Failed to parse JSON response
-    ParseError Text
-  | -- | API returned an error status (status code, message)
-    ApiError Int Text
-  deriving stock (Show, Eq)

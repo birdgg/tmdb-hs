@@ -27,10 +27,10 @@ library
     Network.Tmdb.API.Search
     Network.Tmdb.API.Tv
     Network.Tmdb.Client
-    Network.Tmdb.IO
     Network.Tmdb.Types
     Network.Tmdb.Types.Common
     Network.Tmdb.Types.Discover
+    Network.Tmdb.Types.Error
     Network.Tmdb.Types.Image
     Network.Tmdb.Types.Language
     Network.Tmdb.Types.Movie
@@ -40,10 +40,12 @@ library
   build-depends:
     , aeson                >=2.1
     , base                 >=4.16 && <5
+    , bytestring           >=0.11
     , country              >=0.2
     , http-api-data        >=0.5
     , http-client          >=0.7
     , http-client-tls      >=0.3
+    , http-types           >=0.12
     , servant              >=0.20
     , servant-client       >=0.20
     , servant-client-core  >=0.20
@@ -96,6 +98,7 @@ test-suite tmdb-test
 
   other-modules:
     Test.Tmdb.Types.CommonSpec
+    Test.Tmdb.Types.ErrorSpec
     Test.Tmdb.Types.LanguageSpec
     Test.Tmdb.Types.TvSpec
     Test.Tmdb.Types.MovieSpec
