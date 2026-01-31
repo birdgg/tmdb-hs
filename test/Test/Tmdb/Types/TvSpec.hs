@@ -2,6 +2,7 @@ module Test.Tmdb.Types.TvSpec (spec) where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy (ByteString)
+import Network.Tmdb.Types.Common (TvShowId (..))
 import Network.Tmdb.Types.Tv
 import Test.Hspec
 
@@ -29,7 +30,7 @@ spec = do
       case eitherDecode json :: Either String TvShow of
         Left err -> expectationFailure err
         Right tv -> do
-          tv.id `shouldBe` 12345
+          tv.id `shouldBe` TvShowId 12345
           tv.name `shouldBe` "Test Show"
           tv.originalName `shouldBe` "Test Show Original"
           tv.overview `shouldBe` "A test show"
@@ -59,7 +60,7 @@ spec = do
       case eitherDecode json :: Either String TvShow of
         Left err -> expectationFailure err
         Right tv -> do
-          tv.id `shouldBe` 12345
+          tv.id `shouldBe` TvShowId 12345
           tv.posterPath `shouldBe` Nothing
           tv.backdropPath `shouldBe` Nothing
           tv.firstAirDate `shouldBe` Nothing
@@ -100,7 +101,7 @@ spec = do
       case eitherDecode json :: Either String TvDetail of
         Left err -> expectationFailure err
         Right tv -> do
-          tv.id `shouldBe` 12345
+          tv.id `shouldBe` TvShowId 12345
           tv.status `shouldBe` "Returning Series"
           tv.numberOfSeasons `shouldBe` 3
           tv.numberOfEpisodes `shouldBe` 30
@@ -277,7 +278,7 @@ spec = do
         Left err -> expectationFailure err
         Right ep -> do
           ep.id `shouldBe` 11111
-          ep.showId `shouldBe` 12345
+          ep.showId `shouldBe` TvShowId 12345
           ep.name `shouldBe` "Pilot"
           ep.episodeNumber `shouldBe` 1
           ep.seasonNumber `shouldBe` 1

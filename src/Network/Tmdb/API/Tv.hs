@@ -9,7 +9,6 @@ module Network.Tmdb.API.Tv
   )
 where
 
-import Data.Int (Int64)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.Tmdb.Types
@@ -19,13 +18,13 @@ import Servant.API
 data TvRoutes mode = TvRoutes
   { getTvDetail
       :: mode
-        :- Capture "tv_id" Int64
+        :- Capture "tv_id" TvShowId
           :> QueryParam' '[Required, Strict] "api_key" Text
           :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] TvDetail
   , getTvSeasonDetail
       :: mode
-        :- Capture "series_id" Int64
+        :- Capture "series_id" TvShowId
           :> "season"
           :> Capture "season_number" Int
           :> QueryParam' '[Required, Strict] "api_key" Text
@@ -33,7 +32,7 @@ data TvRoutes mode = TvRoutes
           :> Get '[JSON] TvSeasonDetail
   , getTvEpisodeDetail
       :: mode
-        :- Capture "series_id" Int64
+        :- Capture "series_id" TvShowId
           :> "season"
           :> Capture "season_number" Int
           :> "episode"

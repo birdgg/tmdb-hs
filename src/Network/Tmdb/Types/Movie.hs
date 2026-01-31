@@ -16,6 +16,7 @@ import Data.Aeson
 import Data.Int (Int64)
 import Data.Text (Text)
 import GHC.Generics (Generic)
+import Network.Tmdb.Types.Common (MovieId)
 
 -- | Genre from TMDB API
 data Genre = Genre
@@ -77,7 +78,7 @@ instance FromJSON SpokenLanguage where
 
 -- | Movie from TMDB API (discover/search results)
 data Movie = Movie
-  { id :: Int64
+  { id :: MovieId
   , title :: Text
   , originalTitle :: Text
   , overview :: Text
@@ -114,7 +115,7 @@ instance FromJSON Movie where
 
 -- | Movie Detail from TMDB API (movie/{id} endpoint)
 data MovieDetail = MovieDetail
-  { id :: Int64
+  { id :: MovieId
   , title :: Text
   , originalTitle :: Text
   , overview :: Text

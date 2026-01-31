@@ -23,7 +23,7 @@ This is a Haskell client library for the TMDB API using servant-client for type-
 
 ```
 Network.Tmdb           -- Main entry point, re-exports IO interface
-Network.Tmdb.IO        -- High-level IO interface (TmdbClient, TmdbConfig)
+Network.Tmdb.IO        -- High-level IO interface (TmdbClient, TmdbConfig, requires Manager)
 Network.Tmdb.Client    -- Low-level ClientM functions
 Network.Tmdb.API       -- Servant API type definitions (TmdbRoutes)
 Network.Tmdb.Types     -- Type re-exports

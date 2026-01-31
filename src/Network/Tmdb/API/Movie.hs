@@ -9,7 +9,6 @@ module Network.Tmdb.API.Movie
   )
 where
 
-import Data.Int (Int64)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Network.Tmdb.Types
@@ -19,7 +18,7 @@ import Servant.API
 data MovieRoutes mode = MovieRoutes
   { getMovieDetail
       :: mode
-        :- Capture "movie_id" Int64
+        :- Capture "movie_id" MovieId
           :> QueryParam' '[Required, Strict] "api_key" Text
           :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] MovieDetail

@@ -18,6 +18,7 @@ import Data.Aeson
 import Data.Int (Int64)
 import Data.Text (Text)
 import GHC.Generics (Generic)
+import Network.Tmdb.Types.Common (TvShowId)
 
 -- | Season summary from TMDB API (included in TvDetail.seasons)
 data TvSeasonSummary = TvSeasonSummary
@@ -38,7 +39,7 @@ instance FromJSON TvSeasonSummary where
 
 -- | TV Show from TMDB API (discover/search results)
 data TvShow = TvShow
-  { id :: Int64
+  { id :: TvShowId
   , name :: Text
   , originalName :: Text
   , overview :: Text
@@ -73,7 +74,7 @@ instance FromJSON TvShow where
 
 -- | TV Detail from TMDB API (tv/{id} endpoint)
 data TvDetail = TvDetail
-  { id :: Int64
+  { id :: TvShowId
   , name :: Text
   , originalName :: Text
   , overview :: Text
@@ -178,7 +179,7 @@ instance FromJSON TvSeasonDetail where
 -- | TV Episode Detail from TMDB API (tv/{id}/season/{number}/episode/{number} endpoint)
 data TvEpisodeDetail = TvEpisodeDetail
   { id :: Int64
-  , showId :: Int64
+  , showId :: TvShowId
   , name :: Text
   , overview :: Text
   , airDate :: Maybe Text

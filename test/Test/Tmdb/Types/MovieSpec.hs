@@ -2,6 +2,7 @@ module Test.Tmdb.Types.MovieSpec (spec) where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy (ByteString)
+import Network.Tmdb.Types.Common (MovieId (..))
 import Network.Tmdb.Types.Movie
 import Test.Hspec
 
@@ -109,7 +110,7 @@ spec = do
       case eitherDecode json :: Either String Movie of
         Left err -> expectationFailure err
         Right movie -> do
-          movie.id `shouldBe` 550
+          movie.id `shouldBe` MovieId 550
           movie.title `shouldBe` "Fight Club"
           movie.originalTitle `shouldBe` "Fight Club"
           movie.overview `shouldBe` "A depressed man..."
@@ -180,7 +181,7 @@ spec = do
       case eitherDecode json :: Either String MovieDetail of
         Left err -> expectationFailure err
         Right movie -> do
-          movie.id `shouldBe` 550
+          movie.id `shouldBe` MovieId 550
           movie.title `shouldBe` "Fight Club"
           movie.tagline `shouldBe` Just "Mischief. Mayhem. Soap."
           movie.runtime `shouldBe` Just 139
