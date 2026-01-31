@@ -20,7 +20,7 @@ data DiscoverRoutes mode = DiscoverRoutes
       :: mode
         :- "tv"
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> QueryParam "with_genres" Text
           :> QueryParam "with_text_query" Text
           :> Get '[JSON] (PaginatedResponse TvShow)

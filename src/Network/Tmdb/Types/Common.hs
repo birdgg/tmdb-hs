@@ -5,9 +5,6 @@ module Network.Tmdb.Types.Common
 
     -- * Errors
   , TmdbError (..)
-
-    -- * Configuration
-  , defaultLanguage
   )
 where
 
@@ -42,7 +39,3 @@ data TmdbError
   | -- | API returned an error status (status code, message)
     ApiError Int Text
   deriving stock (Show, Eq)
-
--- | Default language for TMDB API responses
-defaultLanguage :: Text
-defaultLanguage = "zh-CN"

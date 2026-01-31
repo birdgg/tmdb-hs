@@ -20,14 +20,14 @@ data SearchRoutes mode = SearchRoutes
       :: mode
         :- "tv"
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> QueryParam' '[Required, Strict] "query" Text
           :> Get '[JSON] (PaginatedResponse TvShow)
   , searchMulti
       :: mode
         :- "multi"
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> QueryParam' '[Required, Strict] "query" Text
           :> Get '[JSON] (PaginatedResponse MultiSearchResult)
   }

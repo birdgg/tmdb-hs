@@ -21,7 +21,7 @@ data MovieRoutes mode = MovieRoutes
       :: mode
         :- Capture "movie_id" Int64
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] MovieDetail
   }
   deriving stock (Generic)

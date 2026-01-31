@@ -21,7 +21,7 @@ data TvRoutes mode = TvRoutes
       :: mode
         :- Capture "tv_id" Int64
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] TvDetail
   , getTvSeasonDetail
       :: mode
@@ -29,7 +29,7 @@ data TvRoutes mode = TvRoutes
           :> "season"
           :> Capture "season_number" Int
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] TvSeasonDetail
   , getTvEpisodeDetail
       :: mode
@@ -39,7 +39,7 @@ data TvRoutes mode = TvRoutes
           :> "episode"
           :> Capture "episode_number" Int
           :> QueryParam' '[Required, Strict] "api_key" Text
-          :> QueryParam' '[Required, Strict] "language" Text
+          :> QueryParam' '[Required, Strict] "language" TmdbLocale
           :> Get '[JSON] TvEpisodeDetail
   }
   deriving stock (Generic)

@@ -31,6 +31,7 @@ library
     Network.Tmdb.Types
     Network.Tmdb.Types.Common
     Network.Tmdb.Types.Discover
+    Network.Tmdb.Types.Language
     Network.Tmdb.Types.Movie
     Network.Tmdb.Types.Search
     Network.Tmdb.Types.Tv
@@ -38,6 +39,7 @@ library
   build-depends:
     , aeson                >=2.1
     , base                 >=4.16 && <5
+    , country              >=0.2
     , http-api-data        >=0.5
     , http-client          >=0.7
     , http-client-tls      >=0.3
@@ -59,3 +61,41 @@ library
     OverloadedRecordDot
     OverloadedStrings
     TypeFamilies
+
+test-suite tmdb-test
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  hs-source-dirs:   test
+  default-language: GHC2021
+  ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
+
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DerivingStrategies
+    DuplicateRecordFields
+    LambdaCase
+    NoFieldSelectors
+    OverloadedRecordDot
+    OverloadedStrings
+    TypeFamilies
+
+  build-depends:
+    , aeson
+    , base           >=4.16 && <5
+    , bytestring
+    , country        >=0.2
+    , hspec          >=2.10
+    , http-api-data  >=0.5
+    , text
+    , tmdb
+
+  build-tool-depends:
+    hspec-discover:hspec-discover >=2.10
+
+  other-modules:
+    Test.Tmdb.Types.CommonSpec
+    Test.Tmdb.Types.LanguageSpec
+    Test.Tmdb.Types.TvSpec
+    Test.Tmdb.Types.MovieSpec
+    Test.Tmdb.Types.SearchSpec

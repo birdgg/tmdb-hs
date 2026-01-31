@@ -37,80 +37,80 @@ client' = genericClient
 discoverTv
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language (e.g. "zh-CN", "en-US")
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> DiscoverTvParams
   -- ^ Discovery parameters
   -> ClientM (PaginatedResponse TvShow)
-discoverTv apiKey lang params =
-  Discover.discoverTv (discover client') apiKey lang params.withGenres params.withTextQuery
+discoverTv apiKey locale params =
+  Discover.discoverTv (discover client') apiKey locale params.withGenres params.withTextQuery
 
 -- | Search TV shows
 searchTv
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Text
   -- ^ Search query
   -> ClientM (PaginatedResponse TvShow)
-searchTv apiKey lang = Search.searchTv (search client') apiKey lang
+searchTv apiKey locale = Search.searchTv (search client') apiKey locale
 
 -- | Search multi (movies, TV shows, and people)
 searchMulti
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Text
   -- ^ Search query
   -> ClientM (PaginatedResponse MultiSearchResult)
-searchMulti apiKey lang = Search.searchMulti (search client') apiKey lang
+searchMulti apiKey locale = Search.searchMulti (search client') apiKey locale
 
 -- | Get movie detail
 getMovieDetail
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Int64
   -- ^ Movie ID
   -> ClientM MovieDetail
-getMovieDetail apiKey lang movieId =
-  Movie.getMovieDetail (movie client') movieId apiKey lang
+getMovieDetail apiKey locale movieId =
+  Movie.getMovieDetail (movie client') movieId apiKey locale
 
 -- | Get TV detail
 getTvDetail
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Int64
   -- ^ TV ID
   -> ClientM TvDetail
-getTvDetail apiKey lang tvId =
-  Tv.getTvDetail (tv client') tvId apiKey lang
+getTvDetail apiKey locale tvId =
+  Tv.getTvDetail (tv client') tvId apiKey locale
 
 -- | Get TV season detail
 getTvSeasonDetail
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Int64
   -- ^ TV series ID
   -> Int
   -- ^ Season number
   -> ClientM TvSeasonDetail
-getTvSeasonDetail apiKey lang seriesId seasonNum =
-  Tv.getTvSeasonDetail (tv client') seriesId seasonNum apiKey lang
+getTvSeasonDetail apiKey locale seriesId seasonNum =
+  Tv.getTvSeasonDetail (tv client') seriesId seasonNum apiKey locale
 
 -- | Get TV episode detail
 getTvEpisodeDetail
   :: Text
   -- ^ API key
-  -> Text
-  -- ^ Language
+  -> TmdbLocale
+  -- ^ Language/region locale
   -> Int64
   -- ^ TV series ID
   -> Int
@@ -118,5 +118,5 @@ getTvEpisodeDetail
   -> Int
   -- ^ Episode number
   -> ClientM TvEpisodeDetail
-getTvEpisodeDetail apiKey lang seriesId seasonNum episodeNum =
-  Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum apiKey lang
+getTvEpisodeDetail apiKey locale seriesId seasonNum episodeNum =
+  Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum apiKey locale

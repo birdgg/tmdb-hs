@@ -5,11 +5,14 @@ This module re-exports all public API from the tmdb package.
 = Usage (IO interface - recommended)
 
 @
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.Tmdb
 
 main :: IO ()
 main = do
-  client <- newTmdbClient (TmdbConfig "your-api-key" "zh-CN")
+  manager <- newManager tlsManagerSettings
+  let client = newTmdbClient (TmdbConfig "your-api-key" zhCN) manager
   result <- searchTv client "進撃の巨人"
   case result of
     Right shows -> print shows
@@ -30,7 +33,7 @@ main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
   let env = mkClientEnv manager Tmdb.tmdbBaseUrl
-  result <- runClientM (Tmdb.searchTv "your-api-key" "en-US" "Breaking Bad") env
+  result <- runClientM (Tmdb.searchTv "your-api-key" enUS "Breaking Bad") env
   print result
 @
 -}
@@ -39,7 +42,6 @@ module Network.Tmdb
     TmdbClient
   , TmdbConfig (..)
   , newTmdbClient
-  , newTmdbClientWith
 
     -- * API Functions
   , searchTv
