@@ -12,7 +12,7 @@ import Network.Tmdb
 main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
-  let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+  let tmdb = mkTmdbClient (TmdbConfig "your-api-key" zhCN) manager
   result <- tmdb.searchTv "進撃の巨人"
   case result of
     Right shows -> print shows
@@ -23,7 +23,7 @@ module Network.Tmdb
   ( -- * API
     TmdbApi (..)
   , TmdbConfig (..)
-  , newTmdbApi
+  , mkTmdbClient
 
     -- * Types
   , module Network.Tmdb.Types

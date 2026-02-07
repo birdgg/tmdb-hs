@@ -37,7 +37,7 @@ main :: IO ()
 main = do
   -- Create HTTP manager and API client
   manager <- newManager tlsManagerSettings
-  let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+  let tmdb = mkTmdbClient (TmdbConfig "your-api-key" zhCN) manager
 
   -- Get movie details
   movieResult <- tmdb.getMovieDetail (MovieId 550)  -- Fight Club

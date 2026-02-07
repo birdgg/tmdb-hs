@@ -10,7 +10,7 @@ import Network.Tmdb
 main :: IO ()
 main = do
   manager <- newManager tlsManagerSettings
-  let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+  let tmdb = mkTmdbClient (TmdbConfig "your-api-key" zhCN) manager
   result <- tmdb.searchTv "進撃の巨人"
   case result of
     Right shows -> print shows
@@ -21,7 +21,7 @@ module Network.Tmdb.Client
   ( -- * API
     TmdbApi (..)
   , TmdbConfig (..)
-  , newTmdbApi
+  , mkTmdbClient
 
     -- * Re-exports
   , module Network.Tmdb.Types
@@ -46,7 +46,7 @@ import Servant.Client.Generic (AsClientT, genericClient)
 data TmdbConfig = TmdbConfig
   { apiKey :: Text
   -- ^ Your TMDB API key
-  , locale :: TmdbLocale
+  , language :: TmdbLocale
   -- ^ Locale for results (e.g. zhCN, enUS, jaJP)
   }
   deriving stock (Show, Eq)
@@ -56,7 +56,7 @@ data TmdbConfig = TmdbConfig
 -- Use record dot syntax to call API methods:
 --
 -- @
--- let tmdb = newTmdbApi config manager
+-- let tmdb = mkTmdbClient config manager
 -- result <- tmdb.searchTv "query"
 -- detail <- tmdb.getTvDetail tvId
 -- @
@@ -90,48 +90,27 @@ data TmdbApi = TmdbApi
 -- main :: IO ()
 -- main = do
 --   manager <- newManager tlsManagerSettings
---   let tmdb = newTmdbApi (TmdbConfig "your-api-key" zhCN) manager
+--   let tmdb = mkTmdbClient (TmdbConfig "your-api-key" zhCN) manager
 --   result <- tmdb.searchTv "進撃の巨人"
 --   print result
 -- @
-newTmdbApi :: TmdbConfig -> Manager -> TmdbApi
-newTmdbApi cfg manager =
+mkTmdbClient :: TmdbConfig -> Manager -> TmdbApi
+mkTmdbClient cfg manager =
   TmdbApi
     { searchTv = \query ->
-        first fromClientError
-          <$> runClientM
-            (Search.searchTv (search client') cfg.apiKey cfg.locale query)
-            env
+        run (Search.searchTv (search client') cfg.apiKey cfg.language query)
     , searchMulti = \query ->
-        first fromClientError
-          <$> runClientM
-            (Search.searchMulti (search client') cfg.apiKey cfg.locale query)
-            env
+        run (Search.searchMulti (search client') cfg.apiKey cfg.language query)
     , discoverTv = \params ->
-        first fromClientError
-          <$> runClientM
-            (Discover.discoverTv (discover client') cfg.apiKey cfg.locale params.withGenres params.withTextQuery)
-            env
+        run (Discover.discoverTv (discover client') cfg.apiKey cfg.language params.withGenres params.withTextQuery)
     , getMovieDetail = \movieId ->
-        first fromClientError
-          <$> runClientM
-            (Movie.getMovieDetail (movie client') movieId cfg.apiKey cfg.locale)
-            env
+        run (Movie.getMovieDetail (movie client') movieId cfg.apiKey cfg.language)
     , getTvDetail = \tvId ->
-        first fromClientError
-          <$> runClientM
-            (Tv.getTvDetail (tv client') tvId cfg.apiKey cfg.locale)
-            env
+        run (Tv.getTvDetail (tv client') tvId cfg.apiKey cfg.language)
     , getTvSeasonDetail = \seriesId seasonNum ->
-        first fromClientError
-          <$> runClientM
-            (Tv.getTvSeasonDetail (tv client') seriesId seasonNum cfg.apiKey cfg.locale)
-            env
+        run (Tv.getTvSeasonDetail (tv client') seriesId seasonNum cfg.apiKey cfg.language)
     , getTvEpisodeDetail = \seriesId seasonNum episodeNum ->
-        first fromClientError
-          <$> runClientM
-            (Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum cfg.apiKey cfg.locale)
-            env
+        run (Tv.getTvEpisodeDetail (tv client') seriesId seasonNum episodeNum cfg.apiKey cfg.language)
     }
   where
     env :: ClientEnv
@@ -139,3 +118,6 @@ newTmdbApi cfg manager =
 
     client' :: TmdbRoutes (AsClientT ClientM)
     client' = genericClient
+
+    run :: ClientM a -> IO (Either TmdbError a)
+    run action = first fromClientError <$> runClientM action env
