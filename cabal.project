@@ -1,2 +1,10 @@
 packages:
   .
+
+-- GHC 9.14 ships base-4.22; servant ecosystem hasn't updated upper bounds yet
+allow-newer:
+  all:base,
+  all:template-haskell,
+  all:ghc-prim,
+  all:text,
+  all:bytestring
