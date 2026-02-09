@@ -22,20 +22,17 @@ This is a Haskell client library for the TMDB API using servant-client for type-
 ### Module Structure
 
 ```
-Network.Tmdb           -- Main entry point, re-exports IO interface
-Network.Tmdb.IO        -- High-level IO interface (TmdbClient, TmdbConfig, requires Manager)
-Network.Tmdb.Client    -- Low-level ClientM functions
-Network.Tmdb.API       -- Servant API type definitions (TmdbRoutes)
-Network.Tmdb.Types     -- Type re-exports
+Network.Tmdb           -- Main entry point: TmdbApi, TmdbConfig, mkTmdbClient
+Network.Tmdb.API       -- Servant API type definitions (TmdbRoutes and all sub-routes)
+Network.Tmdb.Types     -- Type re-exports from Types/* sub-modules
 ```
 
 ### Adding New API Endpoints
 
 1. **Types** (`Types/<Resource>.hs`): Define data types with manual `FromJSON` instances mapping snake_case JSON to camelCase Haskell fields
-2. **API Routes** (`API/<Resource>.hs`): Define Servant routes using `NamedRoutes` pattern with `QueryParam' '[Required, Strict]` for required params
-3. **Client** (`Client.hs`): Add wrapper function calling the generated client
-4. **IO** (`IO.hs`): Add high-level function using `runClientM`
-5. **Exports**: Update `Types.hs`, `API.hs`, `Tmdb.hs`, and `tmdb.cabal`
+2. **API Routes** (`API.hs`): Add Servant routes using `NamedRoutes` pattern with `QueryParam' '[Required, Strict]` for required params
+3. **Client** (`Tmdb.hs`): Add field to `TmdbApi` record and wire it up in `mkTmdbClient`
+4. **Exports**: Update `Types.hs` and `tmdb.cabal`
 
 ### Key Patterns
 
