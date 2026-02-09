@@ -2,12 +2,25 @@ module Test.Tmdb.Types.TvSpec (spec) where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy (ByteString)
-import Network.Tmdb.Types.Common (TvShowId (..))
+import Data.Time.Calendar (fromGregorian)
+import Network.Tmdb.Types.Common (EpisodeId (..), GenreId (..), SeasonId (..), TvShowId (..))
 import Network.Tmdb.Types.Tv
 import Test.Hspec
 
 spec :: Spec
 spec = do
+  describe "TvStatus" $ do
+    it "parses all known statuses" $ do
+      eitherDecode "\"Returning Series\"" `shouldBe` Right TvReturning
+      eitherDecode "\"Planned\"" `shouldBe` Right TvPlanned
+      eitherDecode "\"In Production\"" `shouldBe` Right TvInProduction
+      eitherDecode "\"Ended\"" `shouldBe` Right TvEnded
+      eitherDecode "\"Canceled\"" `shouldBe` Right TvCanceled
+      eitherDecode "\"Pilot\"" `shouldBe` Right TvPilot
+
+    it "parses unknown status as TvStatusUnknown" $ do
+      eitherDecode "\"New Status\"" `shouldBe` Right (TvStatusUnknown "New Status")
+
   describe "TvShow" $ do
     it "parses complete JSON" $ do
       let json :: ByteString
@@ -36,11 +49,11 @@ spec = do
           tv.overview `shouldBe` "A test show"
           tv.posterPath `shouldBe` Just "/poster.jpg"
           tv.backdropPath `shouldBe` Just "/backdrop.jpg"
-          tv.firstAirDate `shouldBe` Just "2023-01-15"
+          tv.firstAirDate `shouldBe` Just (fromGregorian 2023 1 15)
           tv.voteAverage `shouldBe` 8.5
           tv.voteCount `shouldBe` 1000
           tv.popularity `shouldBe` 50.5
-          tv.genreIds `shouldBe` [18, 35]
+          tv.genreIds `shouldBe` [GenreId 18, GenreId 35]
           tv.originCountry `shouldBe` ["US"]
           tv.originalLanguage `shouldBe` "en"
 
@@ -102,7 +115,7 @@ spec = do
         Left err -> expectationFailure err
         Right tv -> do
           tv.id `shouldBe` TvShowId 12345
-          tv.status `shouldBe` "Returning Series"
+          tv.status `shouldBe` TvReturning
           tv.numberOfSeasons `shouldBe` 3
           tv.numberOfEpisodes `shouldBe` 30
           tv.homepage `shouldBe` Just "https://example.com"
@@ -150,7 +163,7 @@ spec = do
           season.seasonNumber `shouldBe` 1
           season.name `shouldBe` "Season 1"
           season.episodeCount `shouldBe` 10
-          season.airDate `shouldBe` Just "2023-01-15"
+          season.airDate `shouldBe` Just (fromGregorian 2023 1 15)
 
     it "parses with optional air_date missing" $ do
       let json :: ByteString
@@ -184,7 +197,7 @@ spec = do
       case eitherDecode json :: Either String TvSeasonDetail of
         Left err -> expectationFailure err
         Right season -> do
-          season.id `shouldBe` 54321
+          season.id `shouldBe` SeasonId 54321
           season.name `shouldBe` "Season 1"
           season.overview `shouldBe` "First season"
           season.seasonNumber `shouldBe` 1
@@ -199,7 +212,7 @@ spec = do
       case eitherDecode json :: Either String TvSeasonDetail of
         Left err -> expectationFailure err
         Right season -> do
-          season.id `shouldBe` 54321
+          season.id `shouldBe` SeasonId 54321
           season.name `shouldBe` ""
           season.overview `shouldBe` ""
           season.posterPath `shouldBe` Nothing
@@ -228,7 +241,7 @@ spec = do
       case eitherDecode json :: Either String TvEpisode of
         Left err -> expectationFailure err
         Right ep -> do
-          ep.id `shouldBe` 11111
+          ep.id `shouldBe` EpisodeId 11111
           ep.name `shouldBe` "Pilot"
           ep.overview `shouldBe` "First episode"
           ep.episodeNumber `shouldBe` 1
@@ -277,7 +290,7 @@ spec = do
       case eitherDecode json :: Either String TvEpisodeDetail of
         Left err -> expectationFailure err
         Right ep -> do
-          ep.id `shouldBe` 11111
+          ep.id `shouldBe` EpisodeId 11111
           ep.showId `shouldBe` TvShowId 12345
           ep.name `shouldBe` "Pilot"
           ep.episodeNumber `shouldBe` 1

@@ -2,6 +2,7 @@ module Test.Tmdb.Types.SearchSpec (spec) where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy (ByteString)
+import Data.Time.Calendar (fromGregorian)
 import Network.Tmdb.Types.Search
 import Test.Hspec
 
@@ -29,12 +30,8 @@ spec = do
         Left err -> expectationFailure err
         Right mt -> mt `shouldBe` MediaPerson
 
-    it "fails on unknown media type" $ do
-      let json :: ByteString
-          json = "\"unknown\""
-      case eitherDecode json :: Either String MediaType of
-        Left _ -> pure ()
-        Right _ -> expectationFailure "Should fail on unknown media type"
+    it "parses unknown media type as MediaUnknown" $ do
+      eitherDecode "\"unknown\"" `shouldBe` Right (MediaUnknown "unknown")
 
   describe "MultiSearchResult" $ do
     it "parses movie result" $ do
@@ -58,7 +55,7 @@ spec = do
           result.name `shouldBe` Nothing
           result.originalName `shouldBe` Nothing
           result.posterPath `shouldBe` Just "/poster.jpg"
-          result.releaseDate `shouldBe` Just "1999-10-15"
+          result.releaseDate `shouldBe` Just (fromGregorian 1999 10 15)
           result.firstAirDate `shouldBe` Nothing
 
     it "parses tv result" $ do
@@ -82,7 +79,7 @@ spec = do
           result.title `shouldBe` Nothing
           result.originalTitle `shouldBe` Nothing
           result.posterPath `shouldBe` Just "/poster.jpg"
-          result.firstAirDate `shouldBe` Just "2008-01-20"
+          result.firstAirDate `shouldBe` Just (fromGregorian 2008 1 20)
           result.releaseDate `shouldBe` Nothing
 
     it "parses person result" $ do

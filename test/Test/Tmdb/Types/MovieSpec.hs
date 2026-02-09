@@ -2,7 +2,8 @@ module Test.Tmdb.Types.MovieSpec (spec) where
 
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy (ByteString)
-import Network.Tmdb.Types.Common (MovieId (..))
+import Data.Time.Calendar (fromGregorian)
+import Network.Tmdb.Types.Common (GenreId (..), MovieId (..))
 import Network.Tmdb.Types.Movie
 import Test.Hspec
 
@@ -15,7 +16,7 @@ spec = do
       case eitherDecode json :: Either String Genre of
         Left err -> expectationFailure err
         Right genre -> do
-          genre.id `shouldBe` 28
+          genre.id `shouldBe` GenreId 28
           genre.name `shouldBe` "Action"
 
     it "fails on missing fields" $ do
@@ -116,11 +117,11 @@ spec = do
           movie.overview `shouldBe` "A depressed man..."
           movie.posterPath `shouldBe` Just "/poster.jpg"
           movie.backdropPath `shouldBe` Just "/backdrop.jpg"
-          movie.releaseDate `shouldBe` Just "1999-10-15"
+          movie.releaseDate `shouldBe` Just (fromGregorian 1999 10 15)
           movie.voteAverage `shouldBe` 8.4
           movie.voteCount `shouldBe` 25000
           movie.popularity `shouldBe` 60.5
-          movie.genreIds `shouldBe` [18, 53]
+          movie.genreIds `shouldBe` [GenreId 18, GenreId 53]
           movie.originalLanguage `shouldBe` "en"
           movie.adult `shouldBe` False
           movie.video `shouldBe` False
@@ -147,6 +148,86 @@ spec = do
           movie.genreIds `shouldBe` []
           movie.adult `shouldBe` False
           movie.video `shouldBe` False
+
+    it "parses with null release_date" $ do
+      let json :: ByteString
+          json =
+            "{\
+            \  \"id\": 550,\
+            \  \"title\": \"Fight Club\",\
+            \  \"original_title\": \"Fight Club\",\
+            \  \"vote_average\": 8.4,\
+            \  \"vote_count\": 25000,\
+            \  \"popularity\": 60.5,\
+            \  \"original_language\": \"en\",\
+            \  \"release_date\": null\
+            \}"
+      case eitherDecode json :: Either String Movie of
+        Left err -> expectationFailure err
+        Right movie -> movie.releaseDate `shouldBe` Nothing
+
+    it "parses with empty string release_date" $ do
+      let json :: ByteString
+          json =
+            "{\
+            \  \"id\": 550,\
+            \  \"title\": \"Fight Club\",\
+            \  \"original_title\": \"Fight Club\",\
+            \  \"vote_average\": 8.4,\
+            \  \"vote_count\": 25000,\
+            \  \"popularity\": 60.5,\
+            \  \"original_language\": \"en\",\
+            \  \"release_date\": \"\"\
+            \}"
+      case eitherDecode json :: Either String Movie of
+        Left err -> expectationFailure err
+        Right movie -> movie.releaseDate `shouldBe` Nothing
+
+    it "parses with invalid release_date as Nothing" $ do
+      let json :: ByteString
+          json =
+            "{\
+            \  \"id\": 550,\
+            \  \"title\": \"Fight Club\",\
+            \  \"original_title\": \"Fight Club\",\
+            \  \"vote_average\": 8.4,\
+            \  \"vote_count\": 25000,\
+            \  \"popularity\": 60.5,\
+            \  \"original_language\": \"en\",\
+            \  \"release_date\": \"TBA\"\
+            \}"
+      case eitherDecode json :: Either String Movie of
+        Left err -> expectationFailure err
+        Right movie -> movie.releaseDate `shouldBe` Nothing
+
+    it "parses with whitespace-only release_date as Nothing" $ do
+      let json :: ByteString
+          json =
+            "{\
+            \  \"id\": 550,\
+            \  \"title\": \"Fight Club\",\
+            \  \"original_title\": \"Fight Club\",\
+            \  \"vote_average\": 8.4,\
+            \  \"vote_count\": 25000,\
+            \  \"popularity\": 60.5,\
+            \  \"original_language\": \"en\",\
+            \  \"release_date\": \"   \"\
+            \}"
+      case eitherDecode json :: Either String Movie of
+        Left err -> expectationFailure err
+        Right movie -> movie.releaseDate `shouldBe` Nothing
+
+  describe "MovieStatus" $ do
+    it "parses all known statuses" $ do
+      eitherDecode "\"Rumored\"" `shouldBe` Right MovieRumored
+      eitherDecode "\"Planned\"" `shouldBe` Right MoviePlanned
+      eitherDecode "\"In Production\"" `shouldBe` Right MovieInProduction
+      eitherDecode "\"Post Production\"" `shouldBe` Right MoviePostProduction
+      eitherDecode "\"Released\"" `shouldBe` Right MovieReleased
+      eitherDecode "\"Canceled\"" `shouldBe` Right MovieCanceled
+
+    it "parses unknown status as MovieStatusUnknown" $ do
+      eitherDecode "\"New Status\"" `shouldBe` Right (MovieStatusUnknown "New Status")
 
   describe "MovieDetail" $ do
     it "parses complete JSON" $ do
@@ -185,7 +266,7 @@ spec = do
           movie.title `shouldBe` "Fight Club"
           movie.tagline `shouldBe` Just "Mischief. Mayhem. Soap."
           movie.runtime `shouldBe` Just 139
-          movie.status `shouldBe` "Released"
+          movie.status `shouldBe` MovieReleased
           movie.homepage `shouldBe` Just "https://example.com"
           movie.budget `shouldBe` 63000000
           movie.revenue `shouldBe` 100853753

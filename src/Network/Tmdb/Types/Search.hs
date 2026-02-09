@@ -9,11 +9,12 @@ where
 import Data.Aeson
 import Data.Int (Int64)
 import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.Time.Calendar (Day)
 import GHC.Generics (Generic)
+import Network.Tmdb.Types.Common (parseOptionalDate)
 
 -- | Media type for multi search results
-data MediaType = MediaMovie | MediaTv | MediaPerson
+data MediaType = MediaMovie | MediaTv | MediaPerson | MediaUnknown Text
   deriving stock (Show, Eq, Generic)
 
 instance FromJSON MediaType where
@@ -21,7 +22,7 @@ instance FromJSON MediaType where
     "movie" -> pure MediaMovie
     "tv" -> pure MediaTv
     "person" -> pure MediaPerson
-    other -> fail $ "Unknown media_type: " <> Text.unpack other
+    other -> pure (MediaUnknown other)
 
 -- | Multi search result from TMDB API
 -- This is a union type that can represent movie, tv, or person results
@@ -37,9 +38,9 @@ data MultiSearchResult = MultiSearchResult
   , originalTitle :: Maybe Text
   -- ^ For movies
   , posterPath :: Maybe Text
-  , firstAirDate :: Maybe Text
+  , firstAirDate :: Maybe Day
   -- ^ For TV shows
-  , releaseDate :: Maybe Text
+  , releaseDate :: Maybe Day
   -- ^ For movies
   }
   deriving stock (Show, Eq, Generic)
@@ -54,5 +55,5 @@ instance FromJSON MultiSearchResult where
       <*> o .:? "original_name"
       <*> o .:? "original_title"
       <*> o .:? "poster_path"
-      <*> o .:? "first_air_date"
-      <*> o .:? "release_date"
+      <*> parseOptionalDate o "first_air_date"
+      <*> parseOptionalDate o "release_date"

@@ -3,6 +3,7 @@ module Network.Tmdb.Types.Movie
   ( -- * Movie
     Movie (..)
   , MovieDetail (..)
+  , MovieStatus (..)
 
     -- * Supporting types
   , Genre (..)
@@ -15,12 +16,34 @@ where
 import Data.Aeson
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Time.Calendar (Day)
 import GHC.Generics (Generic)
-import Network.Tmdb.Types.Common (MovieId)
+import Network.Tmdb.Types.Common (GenreId, MovieId, parseOptionalDate)
+
+-- | Movie production/release status from TMDB API
+data MovieStatus
+  = MovieRumored
+  | MoviePlanned
+  | MovieInProduction
+  | MoviePostProduction
+  | MovieReleased
+  | MovieCanceled
+  | MovieStatusUnknown Text
+  deriving stock (Show, Eq, Generic)
+
+instance FromJSON MovieStatus where
+  parseJSON = withText "MovieStatus" $ \case
+    "Rumored" -> pure MovieRumored
+    "Planned" -> pure MoviePlanned
+    "In Production" -> pure MovieInProduction
+    "Post Production" -> pure MoviePostProduction
+    "Released" -> pure MovieReleased
+    "Canceled" -> pure MovieCanceled
+    other -> pure (MovieStatusUnknown other)
 
 -- | Genre from TMDB API
 data Genre = Genre
-  { id :: Int64
+  { id :: GenreId
   , name :: Text
   }
   deriving stock (Show, Eq, Generic)
@@ -84,11 +107,11 @@ data Movie = Movie
   , overview :: Text
   , posterPath :: Maybe Text
   , backdropPath :: Maybe Text
-  , releaseDate :: Maybe Text
+  , releaseDate :: Maybe Day
   , voteAverage :: Double
   , voteCount :: Int64
   , popularity :: Double
-  , genreIds :: [Int64]
+  , genreIds :: [GenreId]
   , originalLanguage :: Text
   , adult :: Bool
   , video :: Bool
@@ -104,7 +127,7 @@ instance FromJSON Movie where
       <*> o .:? "overview" .!= ""
       <*> o .:? "poster_path"
       <*> o .:? "backdrop_path"
-      <*> o .:? "release_date"
+      <*> parseOptionalDate o "release_date"
       <*> o .: "vote_average"
       <*> o .: "vote_count"
       <*> o .: "popularity"
@@ -122,7 +145,7 @@ data MovieDetail = MovieDetail
   , tagline :: Maybe Text
   , posterPath :: Maybe Text
   , backdropPath :: Maybe Text
-  , releaseDate :: Maybe Text
+  , releaseDate :: Maybe Day
   , runtime :: Maybe Int
   , voteAverage :: Double
   , voteCount :: Int64
@@ -131,7 +154,7 @@ data MovieDetail = MovieDetail
   , originalLanguage :: Text
   , adult :: Bool
   , video :: Bool
-  , status :: Text
+  , status :: MovieStatus
   , homepage :: Maybe Text
   , budget :: Int64
   , revenue :: Int64
@@ -152,7 +175,7 @@ instance FromJSON MovieDetail where
       <*> o .:? "tagline"
       <*> o .:? "poster_path"
       <*> o .:? "backdrop_path"
-      <*> o .:? "release_date"
+      <*> parseOptionalDate o "release_date"
       <*> o .:? "runtime"
       <*> o .: "vote_average"
       <*> o .: "vote_count"

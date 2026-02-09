@@ -50,6 +50,7 @@ library
     , servant-client       >=0.20
     , servant-client-core  >=0.20
     , text                 >=2.0
+    , time                 >=1.9
 
   hs-source-dirs:   src
   default-language: GHC2021
@@ -91,6 +92,7 @@ test-suite tmdb-test
     , hspec          >=2.10
     , http-api-data  >=0.5
     , text
+    , time
     , tmdb
 
   build-tool-depends:

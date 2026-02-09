@@ -2,7 +2,7 @@
 module Network.Tmdb.Types.Error
   ( -- * Error Types
     TmdbError (..)
-  , TmdbApiErrorResponse (..)
+  , ApiErrorResponse (..)
 
     -- * Error Conversion
   , fromClientError
@@ -22,7 +22,11 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (Status (..))
-import Servant.Client (ClientError (..), ResponseF (..))
+import Servant.Client
+  ( ClientError (DecodeFailure, FailureResponse, InvalidContentTypeHeader, UnsupportedContentType)
+  , ResponseF (..)
+  )
+import qualified Servant.Client as Servant
 
 -- | TMDB API error response body
 --
@@ -35,7 +39,7 @@ import Servant.Client (ClientError (..), ResponseF (..))
 --   "status_message": "Invalid API key: You must be granted a valid key."
 -- }
 -- @
-data TmdbApiErrorResponse = TmdbApiErrorResponse
+data ApiErrorResponse = ApiErrorResponse
   { statusCode :: Int64
   -- ^ TMDB-specific status code (not HTTP status)
   , statusMessage :: Text
@@ -45,9 +49,9 @@ data TmdbApiErrorResponse = TmdbApiErrorResponse
   }
   deriving stock (Show, Eq, Generic)
 
-instance FromJSON TmdbApiErrorResponse where
-  parseJSON = withObject "TmdbApiErrorResponse" $ \o ->
-    TmdbApiErrorResponse
+instance FromJSON ApiErrorResponse where
+  parseJSON = withObject "ApiErrorResponse" $ \o ->
+    ApiErrorResponse
       <$> o .: "status_code"
       <*> o .: "status_message"
       <*> o .:? "success"
@@ -56,40 +60,40 @@ instance FromJSON TmdbApiErrorResponse where
 data TmdbError
   = -- | TMDB API returned a structured error response
     -- Contains HTTP status, TMDB status code, and message
-    TmdbApiError
+    ApiError
       { httpStatus :: Int
       , tmdbStatusCode :: Int64
       , tmdbStatusMessage :: Text
       }
   | -- | Resource not found (HTTP 404)
-    TmdbNotFoundError
+    NotFoundError
       { resourceType :: Text
       , resourceId :: Text
       }
   | -- | Authentication failed (invalid API key, expired token, etc.)
-    TmdbAuthError
+    AuthError
       { authMessage :: Text
       }
   | -- | Rate limit exceeded (HTTP 429)
-    TmdbRateLimitError
+    RateLimitError
       { retryAfter :: Maybe Int
       }
   | -- | HTTP error without parseable TMDB error body
-    TmdbHttpError
+    HttpError
       { httpStatus :: Int
       , httpBody :: Text
       }
   | -- | Failed to decode JSON response
-    TmdbDecodeError
+    DecodeError
       { decodeMessage :: Text
       , responseBody :: Text
       }
   | -- | Network connectivity error
-    TmdbConnectionError
+    ConnectionError
       { connectionMessage :: Text
       }
   | -- | Unexpected error (catch-all)
-    TmdbUnknownError
+    UnknownError
       { unknownMessage :: Text
       }
   deriving stock (Show, Eq)
@@ -100,22 +104,22 @@ fromClientError = \case
   FailureResponse _req resp ->
     parseFailureResponse resp
   DecodeFailure msg resp ->
-    TmdbDecodeError
+    DecodeError
       { decodeMessage = msg
       , responseBody = truncateBody (responseBody resp)
       }
   UnsupportedContentType _mediaType resp ->
-    TmdbHttpError
+    HttpError
       { httpStatus = statusCode (responseStatusCode resp)
       , httpBody = "Unsupported content type"
       }
   InvalidContentTypeHeader resp ->
-    TmdbHttpError
+    HttpError
       { httpStatus = statusCode (responseStatusCode resp)
       , httpBody = "Invalid content type header"
       }
-  ConnectionError exc ->
-    TmdbConnectionError
+  Servant.ConnectionError exc ->
+    ConnectionError
       { connectionMessage = T.pack (show exc)
       }
 
@@ -125,44 +129,44 @@ parseFailureResponse resp =
   let status = statusCode (responseStatusCode resp)
       body = responseBody resp
    in case status of
-        404 -> TmdbNotFoundError "resource" "unknown"
-        429 -> TmdbRateLimitError Nothing
+        404 -> NotFoundError "resource" "unknown"
+        429 -> RateLimitError Nothing
         401 -> parseAuthError body
         _ -> parseApiError status body
 
 -- | Parse authentication error from response body
 parseAuthError :: ByteString -> TmdbError
 parseAuthError body =
-  case eitherDecode body :: Either String TmdbApiErrorResponse of
+  case eitherDecode body :: Either String ApiErrorResponse of
     Right apiErr ->
-      TmdbAuthError {authMessage = apiErr.statusMessage}
+      AuthError {authMessage = apiErr.statusMessage}
     Left _ ->
-      TmdbAuthError {authMessage = "Authentication failed"}
+      AuthError {authMessage = "Authentication failed"}
 
 -- | Parse API error from response body
 parseApiError :: Int -> ByteString -> TmdbError
 parseApiError status body =
-  case eitherDecode body :: Either String TmdbApiErrorResponse of
+  case eitherDecode body :: Either String ApiErrorResponse of
     Right apiErr ->
       -- Check for specific TMDB status codes
       case apiErr.statusCode of
         -- Authentication errors
-        3 -> TmdbAuthError {authMessage = apiErr.statusMessage}
-        7 -> TmdbAuthError {authMessage = apiErr.statusMessage}
+        3 -> AuthError {authMessage = apiErr.statusMessage}
+        7 -> AuthError {authMessage = apiErr.statusMessage}
         -- Not found errors
-        6 -> TmdbNotFoundError "id" "invalid"
-        34 -> TmdbNotFoundError "resource" "not found"
+        6 -> NotFoundError "id" "invalid"
+        34 -> NotFoundError "resource" "not found"
         -- Rate limit
-        25 -> TmdbRateLimitError Nothing
+        25 -> RateLimitError Nothing
         -- Generic API error
         _ ->
-          TmdbApiError
+          ApiError
             { httpStatus = status
             , tmdbStatusCode = apiErr.statusCode
             , tmdbStatusMessage = apiErr.statusMessage
             }
     Left _ ->
-      TmdbHttpError
+      HttpError
         { httpStatus = status
         , httpBody = truncateBody body
         }
@@ -178,31 +182,31 @@ truncateBody body =
 -- | Check if error is a not-found error
 isNotFound :: TmdbError -> Bool
 isNotFound = \case
-  TmdbNotFoundError {} -> True
-  TmdbApiError {tmdbStatusCode = 34} -> True
-  TmdbApiError {tmdbStatusCode = 6} -> True
-  TmdbHttpError {httpStatus = 404} -> True
+  NotFoundError {} -> True
+  ApiError {tmdbStatusCode = 34} -> True
+  ApiError {tmdbStatusCode = 6} -> True
+  HttpError {httpStatus = 404} -> True
   _ -> False
 
 -- | Check if error is an authentication error
 isAuthError :: TmdbError -> Bool
 isAuthError = \case
-  TmdbAuthError {} -> True
-  TmdbApiError {tmdbStatusCode = 3} -> True
-  TmdbApiError {tmdbStatusCode = 7} -> True
-  TmdbHttpError {httpStatus = 401} -> True
+  AuthError {} -> True
+  ApiError {tmdbStatusCode = 3} -> True
+  ApiError {tmdbStatusCode = 7} -> True
+  HttpError {httpStatus = 401} -> True
   _ -> False
 
 -- | Check if error is a rate limit error
 isRateLimited :: TmdbError -> Bool
 isRateLimited = \case
-  TmdbRateLimitError {} -> True
-  TmdbApiError {tmdbStatusCode = 25} -> True
-  TmdbHttpError {httpStatus = 429} -> True
+  RateLimitError {} -> True
+  ApiError {tmdbStatusCode = 25} -> True
+  HttpError {httpStatus = 429} -> True
   _ -> False
 
 -- | Check if error is a network connectivity error
 isNetworkError :: TmdbError -> Bool
 isNetworkError = \case
-  TmdbConnectionError {} -> True
+  ConnectionError {} -> True
   _ -> False

@@ -3,6 +3,7 @@ module Network.Tmdb.Types.Tv
   ( -- * TV Show
     TvShow (..)
   , TvDetail (..)
+  , TvStatus (..)
   , TvSeasonSummary (..)
 
     -- * TV Season
@@ -17,15 +18,37 @@ where
 import Data.Aeson
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Time.Calendar (Day)
 import GHC.Generics (Generic)
-import Network.Tmdb.Types.Common (TvShowId)
+import Network.Tmdb.Types.Common (EpisodeId, GenreId, SeasonId, TvShowId, parseOptionalDate)
+
+-- | TV show production/airing status from TMDB API
+data TvStatus
+  = TvReturning
+  | TvPlanned
+  | TvInProduction
+  | TvEnded
+  | TvCanceled
+  | TvPilot
+  | TvStatusUnknown Text
+  deriving stock (Show, Eq, Generic)
+
+instance FromJSON TvStatus where
+  parseJSON = withText "TvStatus" $ \case
+    "Returning Series" -> pure TvReturning
+    "Planned" -> pure TvPlanned
+    "In Production" -> pure TvInProduction
+    "Ended" -> pure TvEnded
+    "Canceled" -> pure TvCanceled
+    "Pilot" -> pure TvPilot
+    other -> pure (TvStatusUnknown other)
 
 -- | Season summary from TMDB API (included in TvDetail.seasons)
 data TvSeasonSummary = TvSeasonSummary
   { seasonNumber :: Int
   , name :: Text
   , episodeCount :: Int
-  , airDate :: Maybe Text
+  , airDate :: Maybe Day
   }
   deriving stock (Show, Eq, Generic)
 
@@ -35,7 +58,7 @@ instance FromJSON TvSeasonSummary where
       <$> o .: "season_number"
       <*> o .: "name"
       <*> o .: "episode_count"
-      <*> o .:? "air_date"
+      <*> parseOptionalDate o "air_date"
 
 -- | TV Show from TMDB API (discover/search results)
 data TvShow = TvShow
@@ -45,11 +68,11 @@ data TvShow = TvShow
   , overview :: Text
   , posterPath :: Maybe Text
   , backdropPath :: Maybe Text
-  , firstAirDate :: Maybe Text
+  , firstAirDate :: Maybe Day
   , voteAverage :: Double
   , voteCount :: Int64
   , popularity :: Double
-  , genreIds :: [Int64]
+  , genreIds :: [GenreId]
   , originCountry :: [Text]
   , originalLanguage :: Text
   }
@@ -64,7 +87,7 @@ instance FromJSON TvShow where
       <*> o .: "overview"
       <*> o .:? "poster_path"
       <*> o .:? "backdrop_path"
-      <*> o .:? "first_air_date"
+      <*> parseOptionalDate o "first_air_date"
       <*> o .: "vote_average"
       <*> o .: "vote_count"
       <*> o .: "popularity"
@@ -80,14 +103,14 @@ data TvDetail = TvDetail
   , overview :: Text
   , posterPath :: Maybe Text
   , backdropPath :: Maybe Text
-  , firstAirDate :: Maybe Text
-  , lastAirDate :: Maybe Text
+  , firstAirDate :: Maybe Day
+  , lastAirDate :: Maybe Day
   , voteAverage :: Double
   , voteCount :: Int64
   , popularity :: Double
   , originCountry :: [Text]
   , originalLanguage :: Text
-  , status :: Text
+  , status :: TvStatus
   , numberOfSeasons :: Int64
   , numberOfEpisodes :: Int64
   , homepage :: Maybe Text
@@ -105,8 +128,8 @@ instance FromJSON TvDetail where
       <*> o .: "overview"
       <*> o .:? "poster_path"
       <*> o .:? "backdrop_path"
-      <*> o .:? "first_air_date"
-      <*> o .:? "last_air_date"
+      <*> parseOptionalDate o "first_air_date"
+      <*> parseOptionalDate o "last_air_date"
       <*> o .: "vote_average"
       <*> o .: "vote_count"
       <*> o .: "popularity"
@@ -120,10 +143,10 @@ instance FromJSON TvDetail where
 
 -- | TV Episode from TMDB API (included in TvSeasonDetail.episodes)
 data TvEpisode = TvEpisode
-  { id :: Int64
+  { id :: EpisodeId
   , name :: Text
   , overview :: Text
-  , airDate :: Maybe Text
+  , airDate :: Maybe Day
   , episodeNumber :: Int
   , seasonNumber :: Int
   , stillPath :: Maybe Text
@@ -140,7 +163,7 @@ instance FromJSON TvEpisode where
       <$> o .: "id"
       <*> o .: "name"
       <*> o .:? "overview" .!= ""
-      <*> o .:? "air_date"
+      <*> parseOptionalDate o "air_date"
       <*> o .: "episode_number"
       <*> o .: "season_number"
       <*> o .:? "still_path"
@@ -151,12 +174,12 @@ instance FromJSON TvEpisode where
 
 -- | TV Season Detail from TMDB API (tv/{id}/season/{number} endpoint)
 data TvSeasonDetail = TvSeasonDetail
-  { id :: Int64
+  { id :: SeasonId
   , name :: Text
   , overview :: Text
   , posterPath :: Maybe Text
   , seasonNumber :: Int
-  , airDate :: Maybe Text
+  , airDate :: Maybe Day
   , voteAverage :: Double
   , voteCount :: Int64
   , episodes :: [TvEpisode]
@@ -171,18 +194,18 @@ instance FromJSON TvSeasonDetail where
       <*> o .:? "overview" .!= ""
       <*> o .:? "poster_path"
       <*> o .: "season_number"
-      <*> o .:? "air_date"
+      <*> parseOptionalDate o "air_date"
       <*> o .:? "vote_average" .!= 0
       <*> o .:? "vote_count" .!= 0
       <*> o .:? "episodes" .!= []
 
 -- | TV Episode Detail from TMDB API (tv/{id}/season/{number}/episode/{number} endpoint)
 data TvEpisodeDetail = TvEpisodeDetail
-  { id :: Int64
+  { id :: EpisodeId
   , showId :: TvShowId
   , name :: Text
   , overview :: Text
-  , airDate :: Maybe Text
+  , airDate :: Maybe Day
   , episodeNumber :: Int
   , seasonNumber :: Int
   , stillPath :: Maybe Text
@@ -200,7 +223,7 @@ instance FromJSON TvEpisodeDetail where
       <*> o .: "show_id"
       <*> o .: "name"
       <*> o .:? "overview" .!= ""
-      <*> o .:? "air_date"
+      <*> parseOptionalDate o "air_date"
       <*> o .: "episode_number"
       <*> o .: "season_number"
       <*> o .:? "still_path"

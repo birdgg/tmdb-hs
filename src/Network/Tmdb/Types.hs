@@ -3,10 +3,14 @@ module Network.Tmdb.Types
   ( -- * ID Types
     MovieId (..)
   , TvShowId (..)
+  , GenreId (..)
+  , EpisodeId (..)
+  , SeasonId (..)
 
     -- * Movie
   , Movie (..)
   , MovieDetail (..)
+  , MovieStatus (..)
   , Genre (..)
   , ProductionCompany (..)
   , ProductionCountry (..)
@@ -15,6 +19,7 @@ module Network.Tmdb.Types
     -- * TV Show
   , TvShow (..)
   , TvDetail (..)
+  , TvStatus (..)
   , TvSeasonSummary (..)
 
     -- * TV Season
@@ -36,7 +41,7 @@ module Network.Tmdb.Types
 
     -- * Errors
   , TmdbError (..)
-  , TmdbApiErrorResponse (..)
+  , ApiErrorResponse (..)
   , fromClientError
   , isNotFound
   , isAuthError
@@ -64,6 +69,9 @@ module Network.Tmdb.Types
     -- * Re-exports from Country
   , Country
 
+    -- * Date
+  , Day
+
     -- * Image Configuration
   , imageBaseUrl
   , PosterSize (..)
@@ -79,6 +87,7 @@ module Network.Tmdb.Types
   )
 where
 
+import Data.Time.Calendar (Day)
 import Network.Tmdb.Types.Common
 import Network.Tmdb.Types.Discover
 import Network.Tmdb.Types.Error

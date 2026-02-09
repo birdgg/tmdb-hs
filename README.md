@@ -65,33 +65,33 @@ The library provides comprehensive error handling with the `TmdbError` type:
 
 ```haskell
 data TmdbError
-  = TmdbApiError        -- TMDB API returned a structured error
+  = ApiError            -- TMDB API returned a structured error
       { httpStatus :: Int
       , tmdbStatusCode :: Int64
       , tmdbStatusMessage :: Text
       }
-  | TmdbNotFoundError   -- Resource not found (HTTP 404)
+  | NotFoundError       -- Resource not found (HTTP 404)
       { resourceType :: Text
       , resourceId :: Text
       }
-  | TmdbAuthError       -- Authentication failed
+  | AuthError           -- Authentication failed
       { authMessage :: Text
       }
-  | TmdbRateLimitError  -- Rate limit exceeded (HTTP 429)
+  | RateLimitError      -- Rate limit exceeded (HTTP 429)
       { retryAfter :: Maybe Int
       }
-  | TmdbHttpError       -- HTTP error without parseable body
+  | HttpError           -- HTTP error without parseable body
       { httpStatus :: Int
       , httpBody :: Text
       }
-  | TmdbDecodeError     -- JSON parsing failed
+  | DecodeError         -- JSON parsing failed
       { decodeMessage :: Text
       , responseBody :: Text
       }
-  | TmdbConnectionError -- Network connectivity error
+  | ConnectionError     -- Network connectivity error
       { connectionMessage :: Text
       }
-  | TmdbUnknownError    -- Unexpected error
+  | UnknownError        -- Unexpected error
       { unknownMessage :: Text
       }
 ```
