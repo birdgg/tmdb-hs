@@ -27,7 +27,8 @@ module Network.Tmdb
   , module Network.Tmdb.Types
 
     -- * Errors
-  , ClientError
+  , TmdbClientError (..)
+  , TmdbApiError (..)
   )
 where
 
@@ -38,7 +39,7 @@ import Network.Tmdb.API (tmdbBaseUrl)
 import qualified Network.Tmdb.API as API
 import Network.Tmdb.Types
 import Data.Proxy (Proxy (..))
-import Servant.Client (ClientEnv, ClientError, ClientM, client, mkClientEnv, runClientM)
+import Servant.Client (ClientEnv, ClientM, client, mkClientEnv, runClientM)
 import Servant.Client.Generic (AsClientT)
 
 -- | Configuration for TMDB API
@@ -60,19 +61,19 @@ data TmdbConfig = TmdbConfig
 -- detail <- tmdb.getTvDetail tvId
 -- @
 data TmdbApi = TmdbApi
-  { searchTv :: Text -> IO (Either TmdbError (PaginatedResponse TvShow))
+  { searchTv :: Text -> IO (Either TmdbClientError (PaginatedResponse TvShow))
   -- ^ Search TV shows
-  , searchMulti :: Text -> IO (Either TmdbError (PaginatedResponse MultiSearchResult))
+  , searchMulti :: Text -> IO (Either TmdbClientError (PaginatedResponse MultiSearchResult))
   -- ^ Search multi (movies, TV shows, and people)
-  , discoverTv :: DiscoverTvParams -> IO (Either TmdbError (PaginatedResponse TvShow))
+  , discoverTv :: DiscoverTvParams -> IO (Either TmdbClientError (PaginatedResponse TvShow))
   -- ^ Discover TV shows with optional filters
-  , getMovieDetail :: MovieId -> IO (Either TmdbError MovieDetail)
+  , getMovieDetail :: MovieId -> IO (Either TmdbClientError MovieDetail)
   -- ^ Get movie details
-  , getTvDetail :: TvShowId -> IO (Either TmdbError TvDetail)
+  , getTvDetail :: TvShowId -> IO (Either TmdbClientError TvDetail)
   -- ^ Get TV show details
-  , getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbError TvSeasonDetail)
+  , getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbClientError TvSeasonDetail)
   -- ^ Get TV season details
-  , getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbError TvEpisodeDetail)
+  , getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbClientError TvEpisodeDetail)
   -- ^ Get TV episode details
   }
 
@@ -118,5 +119,5 @@ mkTmdbClient cfg manager =
     routes :: API.TmdbRoutes (AsClientT ClientM)
     routes = client (Proxy @API.TmdbAPI) cfg.apiKey cfg.language
 
-    run :: ClientM a -> IO (Either TmdbError a)
+    run :: ClientM a -> IO (Either TmdbClientError a)
     run action = first fromClientError <$> runClientM action env

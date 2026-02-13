@@ -1,32 +1,29 @@
 -- | Error types for TMDB API
+--
+-- Uses a two-layer error pattern separating transport-level errors
+-- (servant 'ClientError') from TMDB API domain errors ('TmdbApiError').
 module Network.Tmdb.Types.Error
   ( -- * Error Types
-    TmdbError (..)
+    TmdbClientError (..)
+  , TmdbApiError (..)
   , ApiErrorResponse (..)
 
     -- * Error Conversion
   , fromClientError
-
-    -- * Error Predicates
-  , isNotFound
-  , isAuthError
-  , isRateLimited
-  , isNetworkError
   )
 where
 
+import Control.DeepSeq (NFData (..))
+import Control.Exception (Exception)
 import Data.Aeson (FromJSON (..), eitherDecode, withObject, (.:), (.:?))
-import Data.ByteString.Lazy (ByteString)
 import Data.Int (Int64)
 import Data.Text (Text)
-import qualified Data.Text as T
 import GHC.Generics (Generic)
 import Network.HTTP.Types.Status (Status (..))
 import Servant.Client
-  ( ClientError (DecodeFailure, FailureResponse, InvalidContentTypeHeader, UnsupportedContentType)
+  ( ClientError (..)
   , ResponseF (..)
   )
-import qualified Servant.Client as Servant
 
 -- | TMDB API error response body
 --
@@ -48,6 +45,7 @@ data ApiErrorResponse = ApiErrorResponse
   -- ^ Optional success field (always false for errors)
   }
   deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 instance FromJSON ApiErrorResponse where
   parseJSON = withObject "ApiErrorResponse" $ \o ->
@@ -56,157 +54,55 @@ instance FromJSON ApiErrorResponse where
       <*> o .: "status_message"
       <*> o .:? "success"
 
--- | Errors that can occur during TMDB API operations
-data TmdbError
-  = -- | TMDB API returned a structured error response
-    -- Contains HTTP status, TMDB status code, and message
-    ApiError
-      { httpStatus :: Int
-      , tmdbStatusCode :: Int64
-      , tmdbStatusMessage :: Text
-      }
-  | -- | Resource not found (HTTP 404)
-    NotFoundError
-      { resourceType :: Text
-      , resourceId :: Text
-      }
-  | -- | Authentication failed (invalid API key, expired token, etc.)
-    AuthError
-      { authMessage :: Text
-      }
-  | -- | Rate limit exceeded (HTTP 429)
-    RateLimitError
-      { retryAfter :: Maybe Int
-      }
-  | -- | HTTP error without parseable TMDB error body
-    HttpError
-      { httpStatus :: Int
-      , httpBody :: Text
-      }
-  | -- | Failed to decode JSON response
-    DecodeError
-      { decodeMessage :: Text
-      , responseBody :: Text
-      }
-  | -- | Network connectivity error
-    ConnectionError
-      { connectionMessage :: Text
-      }
-  | -- | Unexpected error (catch-all)
-    UnknownError
-      { unknownMessage :: Text
-      }
-  deriving stock (Show, Eq)
+-- | TMDB API domain errors
+--
+-- Represents structured errors parsed from TMDB API failure responses.
+-- Check 'httpStatus' for HTTP-level classification (404, 401, 429, etc.)
+-- or 'statusCode' for TMDB-specific error codes.
+data TmdbApiError = TmdbApiError
+  { httpStatus :: Int
+  -- ^ HTTP status code from the response
+  , statusCode :: Int64
+  -- ^ TMDB-specific status code
+  , statusMessage :: Text
+  -- ^ Human-readable error message from TMDB
+  }
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
--- | Convert a servant-client 'ClientError' to 'TmdbError'
-fromClientError :: ClientError -> TmdbError
-fromClientError = \case
-  FailureResponse _req resp ->
-    parseFailureResponse resp
-  DecodeFailure msg resp ->
-    DecodeError
-      { decodeMessage = msg
-      , responseBody = truncateBody (responseBody resp)
-      }
-  UnsupportedContentType _mediaType resp ->
-    HttpError
-      { httpStatus = statusCode (responseStatusCode resp)
-      , httpBody = "Unsupported content type"
-      }
-  InvalidContentTypeHeader resp ->
-    HttpError
-      { httpStatus = statusCode (responseStatusCode resp)
-      , httpBody = "Invalid content type header"
-      }
-  Servant.ConnectionError exc ->
-    ConnectionError
-      { connectionMessage = T.pack (show exc)
-      }
+-- | Top-level error type for TMDB client operations
+--
+-- Separates transport-layer errors from TMDB API domain errors:
+--
+-- * 'ServantError' — network, connection, decoding, or HTTP-level failures
+-- * 'TmdbError' — structured errors returned by the TMDB API
+data TmdbClientError
+  = -- | Transport-layer error from servant-client
+    ServantError ClientError
+  | -- | Domain-level error from TMDB API (parsed from response body)
+    TmdbError TmdbApiError
+  deriving stock (Show, Generic)
 
--- | Parse a failure response into appropriate TmdbError
-parseFailureResponse :: ResponseF ByteString -> TmdbError
-parseFailureResponse resp =
-  let status = statusCode (responseStatusCode resp)
-      body = responseBody resp
-   in case status of
-        404 -> NotFoundError "resource" "unknown"
-        429 -> RateLimitError Nothing
-        401 -> parseAuthError body
-        _ -> parseApiError status body
+instance NFData TmdbClientError where
+  rnf (ServantError _) = ()
+  rnf (TmdbError e) = rnf e
 
--- | Parse authentication error from response body
-parseAuthError :: ByteString -> TmdbError
-parseAuthError body =
-  case eitherDecode body :: Either String ApiErrorResponse of
+instance Exception TmdbClientError
+
+-- | Convert a servant-client 'ClientError' to 'TmdbClientError'
+--
+-- For 'FailureResponse' errors, attempts to parse the response body as a
+-- TMDB 'ApiErrorResponse'. If parsing succeeds, returns 'TmdbError';
+-- otherwise wraps the original error as 'ServantError'.
+fromClientError :: ClientError -> TmdbClientError
+fromClientError err@(FailureResponse _req resp) =
+  case eitherDecode (responseBody resp) :: Either String ApiErrorResponse of
     Right apiErr ->
-      AuthError {authMessage = apiErr.statusMessage}
-    Left _ ->
-      AuthError {authMessage = "Authentication failed"}
-
--- | Parse API error from response body
-parseApiError :: Int -> ByteString -> TmdbError
-parseApiError status body =
-  case eitherDecode body :: Either String ApiErrorResponse of
-    Right apiErr ->
-      -- Check for specific TMDB status codes
-      case apiErr.statusCode of
-        -- Authentication errors
-        3 -> AuthError {authMessage = apiErr.statusMessage}
-        7 -> AuthError {authMessage = apiErr.statusMessage}
-        -- Not found errors
-        6 -> NotFoundError "id" "invalid"
-        34 -> NotFoundError "resource" "not found"
-        -- Rate limit
-        25 -> RateLimitError Nothing
-        -- Generic API error
-        _ ->
-          ApiError
-            { httpStatus = status
-            , tmdbStatusCode = apiErr.statusCode
-            , tmdbStatusMessage = apiErr.statusMessage
-            }
-    Left _ ->
-      HttpError
-        { httpStatus = status
-        , httpBody = truncateBody body
-        }
-
--- | Truncate response body for error messages
-truncateBody :: ByteString -> Text
-truncateBody body =
-  let txt = T.pack (show body)
-   in if T.length txt > 200
-        then T.take 200 txt <> "..."
-        else txt
-
--- | Check if error is a not-found error
-isNotFound :: TmdbError -> Bool
-isNotFound = \case
-  NotFoundError {} -> True
-  ApiError {tmdbStatusCode = 34} -> True
-  ApiError {tmdbStatusCode = 6} -> True
-  HttpError {httpStatus = 404} -> True
-  _ -> False
-
--- | Check if error is an authentication error
-isAuthError :: TmdbError -> Bool
-isAuthError = \case
-  AuthError {} -> True
-  ApiError {tmdbStatusCode = 3} -> True
-  ApiError {tmdbStatusCode = 7} -> True
-  HttpError {httpStatus = 401} -> True
-  _ -> False
-
--- | Check if error is a rate limit error
-isRateLimited :: TmdbError -> Bool
-isRateLimited = \case
-  RateLimitError {} -> True
-  ApiError {tmdbStatusCode = 25} -> True
-  HttpError {httpStatus = 429} -> True
-  _ -> False
-
--- | Check if error is a network connectivity error
-isNetworkError :: TmdbError -> Bool
-isNetworkError = \case
-  ConnectionError {} -> True
-  _ -> False
+      TmdbError
+        TmdbApiError
+          { httpStatus = statusCode (responseStatusCode resp)
+          , statusCode = apiErr.statusCode
+          , statusMessage = apiErr.statusMessage
+          }
+    Left _ -> ServantError err
+fromClientError err = ServantError err

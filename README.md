@@ -5,7 +5,7 @@ A pure Haskell client library for [TMDB (The Movie Database) API](https://www.th
 ## Features
 
 - Type-safe API bindings using [servant-client](https://hackage.haskell.org/package/servant-client)
-- Comprehensive error handling with domain-specific error types
+- Two-layer error handling separating transport errors from TMDB API errors
 - Type-safe locale support with `TmdbLocale` newtype
 - Support for Movies, TV Shows, Seasons, Episodes, and Search
 
@@ -51,60 +51,57 @@ main = do
     Right shows -> mapM_ (print . (.name)) shows.results
     Left err -> handleError err
 
-handleError :: TmdbError -> IO ()
-handleError err
-  | isAuthError err = putStrLn "Invalid API key!"
-  | isNotFound err = putStrLn "Resource not found"
-  | isRateLimited err = putStrLn "Rate limited, please wait"
-  | otherwise = print err
+handleError :: TmdbClientError -> IO ()
+handleError = \case
+  TmdbError apiErr -> case apiErr.httpStatus of
+    401 -> putStrLn $ "Auth error: " <> show apiErr.statusMessage
+    404 -> putStrLn "Resource not found"
+    429 -> putStrLn "Rate limited, please wait"
+    _   -> putStrLn $ "API error: " <> show apiErr.statusMessage
+  ServantError clientErr ->
+    putStrLn $ "Transport error: " <> show clientErr
 ```
 
 ## Error Handling
 
-The library provides comprehensive error handling with the `TmdbError` type:
+The library uses a two-layer error type that separates transport-level errors
+(network, decoding) from TMDB API domain errors:
 
 ```haskell
-data TmdbError
-  = ApiError            -- TMDB API returned a structured error
-      { httpStatus :: Int
-      , tmdbStatusCode :: Int64
-      , tmdbStatusMessage :: Text
-      }
-  | NotFoundError       -- Resource not found (HTTP 404)
-      { resourceType :: Text
-      , resourceId :: Text
-      }
-  | AuthError           -- Authentication failed
-      { authMessage :: Text
-      }
-  | RateLimitError      -- Rate limit exceeded (HTTP 429)
-      { retryAfter :: Maybe Int
-      }
-  | HttpError           -- HTTP error without parseable body
-      { httpStatus :: Int
-      , httpBody :: Text
-      }
-  | DecodeError         -- JSON parsing failed
-      { decodeMessage :: Text
-      , responseBody :: Text
-      }
-  | ConnectionError     -- Network connectivity error
-      { connectionMessage :: Text
-      }
-  | UnknownError        -- Unexpected error
-      { unknownMessage :: Text
-      }
+data TmdbClientError
+  = ServantError ClientError   -- Network, connection, or HTTP-level errors
+  | TmdbError TmdbApiError     -- Structured errors from TMDB API
+
+data TmdbApiError = TmdbApiError
+  { httpStatus :: Int       -- HTTP status code (401, 404, 429, etc.)
+  , statusCode :: Int64     -- TMDB-specific status code
+  , statusMessage :: Text   -- Human-readable error message
+  }
 ```
 
-### Error Predicates
-
-Convenient functions for error checking:
+### Handling by HTTP status
 
 ```haskell
-isNotFound    :: TmdbError -> Bool  -- 404 or TMDB status 34/6
-isAuthError   :: TmdbError -> Bool  -- 401 or TMDB status 3/7
-isRateLimited :: TmdbError -> Bool  -- 429 or TMDB status 25
-isNetworkError :: TmdbError -> Bool -- Connection failures
+case result of
+  Right value -> use value
+  Left (TmdbError apiErr) | apiErr.httpStatus == 404 -> handleNotFound
+  Left (TmdbError apiErr) | apiErr.httpStatus == 401 -> handleAuth
+  Left (TmdbError apiErr) | apiErr.httpStatus == 429 -> handleRateLimit
+  Left (TmdbError apiErr) -> handleApiError apiErr
+  Left (ServantError err) -> handleTransportError err
+```
+
+### Handling by TMDB status code
+
+```haskell
+case result of
+  Left (TmdbError apiErr) -> case apiErr.statusCode of
+    7  -> putStrLn "Invalid API key"
+    34 -> putStrLn "Resource not found"
+    25 -> putStrLn "Rate limit exceeded"
+    _  -> print apiErr.statusMessage
+  Left (ServantError _) -> putStrLn "Network error"
+  Right value -> use value
 ```
 
 ### Converting from ClientError
@@ -113,11 +110,11 @@ If you need to work with raw servant-client errors:
 
 ```haskell
 import Servant.Client (ClientError)
-import Network.Tmdb (fromClientError)
+import Network.Tmdb.Types.Error (fromClientError)
 
--- Convert ClientError to TmdbError
-handleClientError :: ClientError -> TmdbError
-handleClientError = fromClientError
+-- Convert ClientError to TmdbClientError
+convert :: ClientError -> TmdbClientError
+convert = fromClientError
 ```
 
 ## API Coverage
@@ -126,33 +123,33 @@ handleClientError = fromClientError
 
 ```haskell
 -- Get movie details by ID
-tmdb.getMovieDetail :: MovieId -> IO (Either TmdbError MovieDetail)
+tmdb.getMovieDetail :: MovieId -> IO (Either TmdbClientError MovieDetail)
 ```
 
 ### TV Shows
 
 ```haskell
 -- Search TV shows
-tmdb.searchTv :: Text -> IO (Either TmdbError (PaginatedResponse TvShow))
+tmdb.searchTv :: Text -> IO (Either TmdbClientError (PaginatedResponse TvShow))
 
 -- Get TV show details
-tmdb.getTvDetail :: TvShowId -> IO (Either TmdbError TvDetail)
+tmdb.getTvDetail :: TvShowId -> IO (Either TmdbClientError TvDetail)
 
 -- Get season details
-tmdb.getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbError TvSeasonDetail)
+tmdb.getTvSeasonDetail :: TvShowId -> Int -> IO (Either TmdbClientError TvSeasonDetail)
 
 -- Get episode details
-tmdb.getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbError TvEpisodeDetail)
+tmdb.getTvEpisodeDetail :: TvShowId -> Int -> Int -> IO (Either TmdbClientError TvEpisodeDetail)
 ```
 
 ### Discovery and Search
 
 ```haskell
 -- Discover TV shows with filters
-tmdb.discoverTv :: DiscoverTvParams -> IO (Either TmdbError (PaginatedResponse TvShow))
+tmdb.discoverTv :: DiscoverTvParams -> IO (Either TmdbClientError (PaginatedResponse TvShow))
 
 -- Multi search (movies, TV shows, people)
-tmdb.searchMulti :: Text -> IO (Either TmdbError (PaginatedResponse MultiSearchResult))
+tmdb.searchMulti :: Text -> IO (Either TmdbClientError (PaginatedResponse MultiSearchResult))
 ```
 
 ## Locale Support
@@ -216,7 +213,8 @@ stillUrl    :: StillSize -> Maybe Text -> Maybe Text
 - `PaginatedResponse a` - Wrapper for paginated API responses
 - `MediaType` - `MediaMovie | MediaTv | MediaPerson`
 - `MultiSearchResult` - Union type for multi-search results
-- `TmdbError` - Domain-specific error type
+- `TmdbClientError` - Two-layer error type (transport + domain)
+- `TmdbApiError` - TMDB API domain error
 
 ## Configuration
 
