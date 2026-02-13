@@ -6,7 +6,7 @@ A pure Haskell client library for [TMDB (The Movie Database) API](https://www.th
 
 - Type-safe API bindings using [servant-client](https://hackage.haskell.org/package/servant-client)
 - Comprehensive error handling with domain-specific error types
-- Type-safe locale support using the [country](https://hackage.haskell.org/package/country) package
+- Type-safe locale support with `TmdbLocale` newtype
 - Support for Movies, TV Shows, Seasons, Episodes, and Search
 
 ## Installation
@@ -173,8 +173,7 @@ itIT :: TmdbLocale        -- Italian
 ruRU :: TmdbLocale        -- Russian
 
 -- Create custom locale
-import Country (unitedKingdom)
-myLocale = mkLocale "en" unitedKingdom  -- "en-GB"
+myLocale = TmdbLocale "en-GB"
 ```
 
 ## Image URLs
@@ -224,7 +223,7 @@ stillUrl    :: StillSize -> Maybe Text -> Maybe Text
 ```haskell
 data TmdbConfig = TmdbConfig
   { apiKey :: Text       -- Your TMDB API key
-  , locale :: TmdbLocale -- Locale for results (e.g., zhCN, enUS, jaJP)
+  , language :: TmdbLocale -- Locale for results (e.g., zhCN, enUS, jaJP)
   }
 ```
 

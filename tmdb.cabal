@@ -36,7 +36,7 @@ library
     , aeson                >=2.1
     , base                 >=4.16 && <5
     , bytestring           >=0.11
-    , country              >=0.2
+
     , http-api-data        >=0.5
     , http-client          >=0.7
     , http-client-tls      >=0.3
